@@ -1,3 +1,15 @@
+# Lieferanten-Tracking (dachpro)
+
+Eigenständiges Projekt, **getrennt** von der Shopverwaltung (`project-shop` / manage.dachpro.com).
+
+**Geplant:** Hersteller tragen Bestellnummer, Tracking-Nummer und Versanddienst ein → Fulfillment + Tracking in Shopify → Kundenbenachrichtigung.
+
+**Geplanter Host:** `tracking.dachpro.com` (eigenes Coolify-Deployment).
+
+**Abstimmung:** eine Datei im Manage-Repo: `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` (neben diesem Repo auf dem Rechner).
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

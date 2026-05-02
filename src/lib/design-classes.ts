@@ -1,0 +1,14 @@
+/**
+ * Abgestimmt auf project-shop (lib/design-classes.ts) – einheitliche Rahmen/Inputs.
+ */
+export const BORDER = "border";
+
+export const INNER_FORM_CLASS = `rounded-lg ${BORDER} border-gray-300 bg-white p-6 space-y-4 shadow-sm`;
+
+const INPUT_CLASS_BASE = `px-3 py-2 text-sm text-gray-900 bg-white ${BORDER} border-gray-400 rounded-lg placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-70`;
+
+export const INPUT_CLASS = `w-full ${INPUT_CLASS_BASE}`;
+
+/** Primärbutton wie in project-shop Einstellungen (Integrationen). */
+export const PRIMARY_BUTTON_CLASS =
+  "inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 bg-gray-800 text-white hover:bg-gray-700 px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60";

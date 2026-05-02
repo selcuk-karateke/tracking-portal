@@ -1,0 +1,23 @@
+// Read-only: Tabelle wird von project-shop (Manage) verwaltet.
+// Spaltennamen müssen mit Prisma-Modell in project-shop übereinstimmen.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SupplierTrackingLink {
+  id        String    @id
+  entityId  String
+  tokenHash String    @unique
+  label     String?
+  revokedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("supplier_tracking_links")
+}
