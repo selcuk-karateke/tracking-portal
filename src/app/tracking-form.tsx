@@ -65,9 +65,8 @@ export function TrackingForm({ token }: Props) {
       const errMsg =
         data &&
         typeof data === "object" &&
-        "error" in data &&
-        typeof (data as { error: unknown }).error === "string"
-          ? (data as { error: string }).error
+        "error" in data
+          ? extractErrorMessage((data as { error: unknown }).error)
           : `Fehler (${res.status})`;
       setState({ status: "error", message: errMsg });
     } catch {
@@ -89,6 +88,7 @@ export function TrackingForm({ token }: Props) {
           name="orderRef"
           type="text"
           autoComplete="off"
+          placeholder="z. B. #1001 oder 1001"
           required
           className={INPUT_CLASS}
         />
@@ -155,4 +155,19 @@ export function TrackingForm({ token }: Props) {
       )}
     </form>
   );
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return "Unbekannter Fehler";
 }

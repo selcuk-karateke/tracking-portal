@@ -8,6 +8,9 @@ Eigenständiges Projekt, **getrennt** von der Shopverwaltung (`project-shop` / m
 
 **Abstimmung:** eine Datei im Manage-Repo: `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` (neben diesem Repo auf dem Rechner).
 
+**Arbeitsstand (verbindlich):** `TASK.md` → Abschnitt **„Stand (für `project-shop` / Kopf)“**.  
+Bei jeder relevanten Änderung dort aktualisieren: *was existiert, was umgesetzt ist, was als Nächstes kommt*.
+
 ---
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).

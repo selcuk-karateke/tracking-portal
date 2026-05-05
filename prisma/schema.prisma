@@ -21,3 +21,14 @@ model SupplierTrackingLink {
 
   @@map("supplier_tracking_links")
 }
+
+model EntityCredential {
+  id        String   @id
+  entityId  String
+  key       String
+  value     String
+  updatedAt DateTime
+
+  @@unique([entityId, key])
+  @@map("entity_credentials")
+}

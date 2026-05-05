@@ -2,6 +2,17 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05 (Phase 3 umgesetzt)
+
+| Bereich | Status |
+|---------|--------|
+| Repo / Branch | `tracking-portal` (Branch: `development`) |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`; Token-Hash + Entity-Auflösung via Prisma; Shopify-Ordersuche + Fulfillment |
+| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3**: Pflichtfeld `token`, SHA-256-Lookup, Credential-Laden aus `entity_credentials`, Bestellsuche (Name primär, numerische ID Fallback), `fulfillmentCreate` mit `notifyCustomer: true`, konsistente JSON-Fehler, `pnpm validate` grün |
+| Offen / nächster Schritt | E2E mit realen Shop-Daten im Deployment und Carrier-Mapping bei Bedarf feinjustieren |
+
+> Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
+
 ## Kommunikation
 
 **Keine Statusberichte oder „Abnahme“-Texte an einzelne Personen per Chat.** Alles, was das Team wissen muss, gehört **ins Repository**:
@@ -55,6 +66,35 @@ Route `/l/…` mit Formular, `/` ohne blindes Absenden, `POST` mit Pflichtfeld `
 
 **Ziel:** Nach erfolgreicher Auflösung `entityId`: Bestellung finden, Fulfillment anlegen, Kunde benachrichtigen (wie in `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` → Abschnitt *Fulfillment-Logik*).
 
+### Phase 3 — Notizen (Stand, nur Repo)
+
+- `POST /api/tracking` lädt Shopify-Credentials pro `entityId` aus `entity_credentials` (`shopify_shop`, `shopify_access_token`), entschlüsselt Token mit `ENCRYPTION_KEY` falls verschlüsselt.
+- Bestellsuche: primär über Order-`name` (`#1001`/`1001` normalisiert), optional numerische Shopify-ID als Fallback.
+- Fulfillment: offene Fulfillment Orders zur Bestellung, Mutation `fulfillmentCreate` mit `trackingNumber`, Carrier-Mapping (DHL/DPD/UPS/Sonstiges), `notifyCustomer: true`.
+- API-Fehler strukturiert als `{ ok: false, error: { code, message } }` mit Status 400/401/403/404/502/503.
+- Erfolgsantwort enthält: `ok`, `entityId`, `orderId`, `orderName`, `fulfillmentId`.
+
+### Phase 3 — Konkreter Auftrag (jetzt ausführen)
+
+1. `POST /api/tracking` so erweitern, dass nach `entityId`-Auflösung der Shopify-Zugang für diese Entität geladen wird (Quelle wie mit Kopf abgestimmt: gemeinsame Credentials-Quelle oder Manage-API).
+2. Bestellsuche implementieren gemäß bereits entschiedener Regel:
+   - Primär Bestellname (`1001`/`#1001`) normalisieren und nach `order.name` auflösen.
+   - Optional numerische ID als Fallback nur wenn eindeutig.
+3. Fulfillment erstellen (`fulfillmentCreate` o. ä.) inkl. `trackingNumber`, Carrier-Mapping, `notifyCustomer: true`.
+4. Fehlerpfade als strukturierte JSON-Antworten liefern:
+   - 400: ungültige Eingabe / mehrdeutige Referenz
+   - 404: Bestellung/Fulfillment Order nicht gefunden
+   - 502/503: Upstream/Shopify/Credentials nicht verfügbar
+5. UI-Hinweistext am Formular aktualisieren (kurz: welche Bestellreferenz erwartet wird).
+
+### Phase 3 — Done-Kriterien
+
+- End-to-end im Portal-Repo lokal nachweisbar: gültiger Token + gültige Bestellung → Fulfillment erstellt.
+- Bei Erfolg enthält Response mindestens: `ok`, `entityId`, `orderId`/`orderName`, `fulfillmentId`.
+- Fehlerfälle liefern konsistente JSON-Struktur (`error.code`, `error.message`) statt generischer 500.
+- `pnpm run lint` und (falls vorhanden) `pnpm run test` / `pnpm run validate` im `tracking-portal` laufen grün.
+- Danach **Pflicht**: Abschnitt **Stand (für `project-shop` / Kopf)** oben aktualisieren.
+
 ### Liefern (grober Ablauf)
 
 1. Pro **`entityId`** Shopify-Zugang laden (gleiche Quelle wie Manage: Credentials / Env-Muster — mit Team abstimmen, ob Lesen aus derselben DB-Tabelle `entity_credentials` oder Aufruf Manage-API).
@@ -75,6 +115,6 @@ Route `/l/…` mit Formular, `/` ohne blindes Absenden, `POST` mit Pflichtfeld `
 |-------|--------------|----------------|
 | 1     | Formular+API | MVP oben erfüllt, Doku-Log |
 | 2     | Token+Entity | `/l/...` + `token` in POST + Auflösung + Env-Doku + validate grün (`2026-05-01` — siehe Notizen oben) |
-| 3     | Shopify      | Fulfillment end-to-end + saubere Fehler |
+| 3     | Shopify      | Fulfillment end-to-end + saubere Fehler (`2026-05-05` — siehe Notizen oben) |
 
 Bei Unklarheiten: **eine** Quelle — `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`.

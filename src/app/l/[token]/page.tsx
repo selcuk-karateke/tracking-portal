@@ -16,7 +16,8 @@ export default async function TrackingLinkPage({ params }: PageProps) {
             Tracking melden
           </h1>
           <p className="text-sm leading-relaxed text-gray-600">
-            Bitte Bestellreferenz, Sendungsnummer und Versanddienst eintragen.
+            Bitte Bestellreferenz wie im Shop eintragen (z. B. #1001 oder 1001),
+            danach Sendungsnummer und Versanddienst.
           </p>
         </div>
         <TrackingForm token={token} />

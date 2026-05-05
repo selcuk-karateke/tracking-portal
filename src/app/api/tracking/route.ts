@@ -1,34 +1,149 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ResolveFailureReason } from "@/lib/resolve-entity-from-token";
 import { resolveEntityIdFromToken } from "@/lib/resolve-entity-from-token";
+import {
+  createFulfillmentForOrder,
+  findOrderForReference,
+  mapCarrierForShopify,
+  type Carrier,
+  type ShopifyErrorCode,
+} from "@/lib/shopify-fulfillment";
+import {
+  loadShopifyCredentials,
+  type ShopifyCredentialReason,
+} from "@/lib/shopify-credentials";
 
 const CARRIERS = ["DHL", "DPD", "UPS", "Sonstiges"] as const;
-type Carrier = (typeof CARRIERS)[number];
 
 function isCarrier(value: unknown): value is Carrier {
   return typeof value === "string" && CARRIERS.includes(value as Carrier);
 }
 
+type ApiError = {
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+  };
+};
+
+function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+): NextResponse<ApiError> {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: { code, message },
+    },
+    { status },
+  );
+}
+
 function responseForResolveFailure(reason: ResolveFailureReason): {
   status: number;
-  error: string;
+  code: string;
+  message: string;
 } {
   switch (reason) {
     case "not_found":
-      return { status: 401, error: "Link ungültig oder unbekannt." };
+      return {
+        status: 401,
+        code: "token_invalid",
+        message: "Link ungültig oder unbekannt.",
+      };
     case "revoked":
-      return { status: 403, error: "Link wurde widerrufen." };
+      return {
+        status: 403,
+        code: "token_revoked",
+        message: "Link wurde widerrufen.",
+      };
     case "expired":
-      return { status: 403, error: "Link ist abgelaufen." };
+      return {
+        status: 403,
+        code: "token_expired",
+        message: "Link ist abgelaufen.",
+      };
     case "not_configured":
       return {
         status: 503,
-        error: "Dienst ist nicht konfiguriert (DATABASE_URL).",
+        code: "database_not_configured",
+        message: "Dienst ist nicht konfiguriert (DATABASE_URL).",
       };
     case "db_unavailable":
       return {
         status: 503,
-        error: "Datenbank vorübergehend nicht erreichbar.",
+        code: "database_unavailable",
+        message: "Datenbank vorübergehend nicht erreichbar.",
+      };
+  }
+}
+
+function responseForCredentialFailure(reason: ShopifyCredentialReason): {
+  status: number;
+  code: string;
+  message: string;
+} {
+  switch (reason) {
+    case "db_unavailable":
+      return {
+        status: 503,
+        code: "credentials_unavailable",
+        message: "Credential-Quelle ist nicht erreichbar.",
+      };
+    case "missing":
+      return {
+        status: 503,
+        code: "shopify_credentials_missing",
+        message:
+          "Shopify-Zugang für diese Entität ist unvollständig (shopify_shop / shopify_access_token).",
+      };
+    case "decrypt_failed":
+      return {
+        status: 503,
+        code: "shopify_token_decrypt_failed",
+        message:
+          "Shopify-Token konnte nicht entschlüsselt werden. ENCRYPTION_KEY prüfen.",
+      };
+  }
+}
+
+function responseForShopifyFailure(code: ShopifyErrorCode): {
+  status: number;
+  message: string;
+} {
+  switch (code) {
+    case "order_reference_ambiguous":
+      return {
+        status: 400,
+        message:
+          "Bestellreferenz ist mehrdeutig. Bitte exakten Bestellnamen wie im Shop verwenden.",
+      };
+    case "order_not_found":
+      return {
+        status: 404,
+        message: "Bestellung konnte nicht gefunden werden.",
+      };
+    case "fulfillment_order_not_found":
+      return {
+        status: 404,
+        message: "Keine offene Fulfillment Order für diese Bestellung gefunden.",
+      };
+    case "shopify_unavailable":
+      return {
+        status: 502,
+        message: "Shopify API ist aktuell nicht erreichbar.",
+      };
+    case "shopify_rejected":
+      return {
+        status: 502,
+        message: "Shopify hat die Anfrage abgelehnt.",
+      };
+    case "invalid_input":
+      return {
+        status: 400,
+        message: "Ungültige Eingabe für die Shopify-Verarbeitung.",
       };
   }
 }
@@ -38,17 +153,11 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Ungültiger JSON-Body." },
-      { status: 400 },
-    );
+    return errorResponse(400, "invalid_json", "Ungültiger JSON-Body.");
   }
 
   if (!body || typeof body !== "object") {
-    return NextResponse.json(
-      { ok: false, error: "Ungültiger JSON-Body." },
-      { status: 400 },
-    );
+    return errorResponse(400, "invalid_json", "Ungültiger JSON-Body.");
   }
 
   const { orderRef, trackingNumber, carrier, token } = body as Record<
@@ -57,46 +166,80 @@ export async function POST(request: NextRequest) {
   >;
 
   if (typeof token !== "string" || token.trim() === "") {
-    return NextResponse.json(
-      { ok: false, error: "Einladungs-Token fehlt." },
-      { status: 400 },
-    );
+    return errorResponse(400, "token_missing", "Einladungs-Token fehlt.");
   }
 
   if (typeof orderRef !== "string" || orderRef.trim() === "") {
-    return NextResponse.json(
-      { ok: false, error: "Bestellnummer fehlt." },
-      { status: 400 },
-    );
+    return errorResponse(400, "order_ref_missing", "Bestellnummer fehlt.");
   }
 
   if (typeof trackingNumber !== "string" || trackingNumber.trim() === "") {
-    return NextResponse.json(
-      { ok: false, error: "Sendungsnummer / Tracking fehlt." },
-      { status: 400 },
+    return errorResponse(
+      400,
+      "tracking_number_missing",
+      "Sendungsnummer / Tracking fehlt.",
     );
   }
 
   if (!isCarrier(carrier)) {
-    return NextResponse.json(
-      { ok: false, error: "Versanddienst fehlt oder ist ungültig." },
-      { status: 400 },
+    return errorResponse(
+      400,
+      "carrier_invalid",
+      "Versanddienst fehlt oder ist ungültig.",
     );
   }
 
   const resolved = await resolveEntityIdFromToken(token.trim());
   if (!resolved.ok) {
-    const { status, error } = responseForResolveFailure(resolved.reason);
-    return NextResponse.json({ ok: false, error }, { status });
+    const { status, code, message } = responseForResolveFailure(resolved.reason);
+    return errorResponse(status, code, message);
+  }
+
+  const credentials = await loadShopifyCredentials(resolved.entityId);
+  if (!credentials.ok) {
+    const { status, code, message } = responseForCredentialFailure(
+      credentials.reason,
+    );
+    return errorResponse(status, code, message);
+  }
+
+  const orderResult = await findOrderForReference({
+    shop: credentials.shop,
+    accessToken: credentials.accessToken,
+    orderRef: orderRef.trim(),
+  });
+  if (!orderResult.ok) {
+    const failure = responseForShopifyFailure(orderResult.code);
+    return errorResponse(failure.status, orderResult.code, failure.message);
+  }
+
+  const fulfillmentResult = await createFulfillmentForOrder({
+    shop: credentials.shop,
+    accessToken: credentials.accessToken,
+    orderId: orderResult.order.id,
+    trackingNumber: trackingNumber.trim(),
+    trackingCompany: mapCarrierForShopify(carrier),
+  });
+  if (!fulfillmentResult.ok) {
+    const failure = responseForShopifyFailure(fulfillmentResult.code);
+    return errorResponse(failure.status, fulfillmentResult.code, failure.message);
   }
 
   const payload = {
     entityId: resolved.entityId,
-    orderRef: orderRef.trim(),
+    orderRef: orderResult.order.name,
+    orderId: orderResult.order.id,
     trackingNumber: trackingNumber.trim(),
     carrier,
+    fulfillmentId: fulfillmentResult.fulfillmentId,
   };
   console.log("[tracking]", payload);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    entityId: resolved.entityId,
+    orderId: orderResult.order.id,
+    orderName: orderResult.order.name,
+    fulfillmentId: fulfillmentResult.fulfillmentId,
+  });
 }
