@@ -32,6 +32,9 @@ export type ShopifyErrorCode =
   | "order_not_found"
   | "order_reference_ambiguous"
   | "fulfillment_order_not_found"
+  | "shop_domain_invalid"
+  | "shop_domain_not_resolvable"
+  | "shopify_unreachable"
   | "shopify_unavailable"
   | "shopify_rejected";
 
@@ -47,6 +50,10 @@ export async function findOrderForReference(params: {
   if (!normalized) {
     return { ok: false, code: "invalid_input" };
   }
+  const normalizedShop = normalizeShopDomain(params.shop);
+  if (!normalizedShop.ok) {
+    return normalizedShop;
+  }
 
   const refForName = normalized.startsWith("#") ? normalized.slice(1) : normalized;
   const queryVariants = Array.from(new Set([`#${refForName}`, refForName]));
@@ -54,7 +61,7 @@ export async function findOrderForReference(params: {
   const candidates = new Map<string, OrderNode>();
   for (const variant of queryVariants) {
     const search = await queryOrdersByName({
-      shop: params.shop,
+      shop: normalizedShop.shop,
       accessToken: params.accessToken,
       queryRef: variant,
     });
@@ -77,7 +84,7 @@ export async function findOrderForReference(params: {
 
   if (/^\d{1,13}$/.test(refForName)) {
     const byId = await queryOrderByNumericId({
-      shop: params.shop,
+      shop: normalizedShop.shop,
       accessToken: params.accessToken,
       numericId: refForName,
     });
@@ -97,8 +104,13 @@ export async function createFulfillmentForOrder(params: {
   | { ok: true; fulfillmentId: string }
   | { ok: false; code: ShopifyErrorCode }
 > {
+  const normalizedShop = normalizeShopDomain(params.shop);
+  if (!normalizedShop.ok) {
+    return normalizedShop;
+  }
+
   const fulfillmentOrders = await queryFulfillmentOrders({
-    shop: params.shop,
+    shop: normalizedShop.shop,
     accessToken: params.accessToken,
     orderId: params.orderId,
   });
@@ -123,7 +135,7 @@ export async function createFulfillmentForOrder(params: {
       userErrors: Array<{ message: string }>;
     };
   }>({
-    shop: params.shop,
+    shop: normalizedShop.shop,
     accessToken: params.accessToken,
     query: `mutation createFulfillment($fulfillment: FulfillmentInput!) {
       fulfillmentCreate(fulfillment: $fulfillment) {
@@ -164,6 +176,25 @@ export async function createFulfillmentForOrder(params: {
 
 function normalizeOrderRef(value: string): string {
   return value.trim().replace(/^#+/, "#");
+}
+
+function normalizeShopDomain(shop: string):
+  | { ok: true; shop: string }
+  | { ok: false; code: ShopifyErrorCode } {
+  const raw = shop.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+  if (!raw) {
+    return { ok: false, code: "shop_domain_invalid" };
+  }
+
+  const candidate = raw.includes(".") ? raw : `${raw}.myshopify.com`;
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(candidate)) {
+    return { ok: false, code: "shop_domain_invalid" };
+  }
+  if (candidate.includes("..") || candidate.startsWith(".") || candidate.endsWith(".")) {
+    return { ok: false, code: "shop_domain_invalid" };
+  }
+
+  return { ok: true, shop: candidate };
 }
 
 async function queryOrdersByName(params: {
@@ -294,7 +325,7 @@ async function graphqlRequest<T>(params: {
     });
   } catch (error) {
     console.error("[tracking] shopify request failed", error);
-    return { ok: false, code: "shopify_unavailable" };
+    return { ok: false, code: mapNetworkErrorToCode(error) };
   }
 
   let payload: unknown;
@@ -323,4 +354,36 @@ async function graphqlRequest<T>(params: {
   }
 
   return { ok: true, data };
+}
+
+function mapNetworkErrorToCode(error: unknown): ShopifyErrorCode {
+  const maybeObject = error && typeof error === "object" ? error : null;
+  const cause = maybeObject && "cause" in maybeObject
+    ? (maybeObject as { cause?: unknown }).cause
+    : undefined;
+
+  const code = extractErrorCode(maybeObject) ?? extractErrorCode(cause);
+  if (code === "ENOTFOUND") {
+    return "shop_domain_not_resolvable";
+  }
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ECONNREFUSED" ||
+    code === "ECONNRESET" ||
+    code === "EHOSTUNREACH" ||
+    code === "UND_ERR_CONNECT_TIMEOUT"
+  ) {
+    return "shopify_unreachable";
+  }
+  return "shopify_unavailable";
+}
+
+function extractErrorCode(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  if ("code" in value && typeof (value as { code?: unknown }).code === "string") {
+    return (value as { code: string }).code;
+  }
+  return undefined;
 }

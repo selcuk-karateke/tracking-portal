@@ -130,6 +130,23 @@ function responseForShopifyFailure(code: ShopifyErrorCode): {
         status: 404,
         message: "Keine offene Fulfillment Order für diese Bestellung gefunden.",
       };
+    case "shop_domain_invalid":
+      return {
+        status: 400,
+        message:
+          "Shop-Domain in den Credentials ist ungültig. Bitte shopify_shop prüfen.",
+      };
+    case "shop_domain_not_resolvable":
+      return {
+        status: 503,
+        message:
+          "Shop-Domain ist nicht auflösbar. Bitte shopify_shop in den Credentials prüfen.",
+      };
+    case "shopify_unreachable":
+      return {
+        status: 503,
+        message: "Shopify ist aktuell nicht erreichbar (Netzwerk/Timeout).",
+      };
     case "shopify_unavailable":
       return {
         status: 502,

@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05 (Phase 3 umgesetzt)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05
 
 | Bereich | Status |
 |---------|--------|
-| Repo / Branch | `tracking-portal` (Branch: `development`) |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`; Token-Hash + Entity-Auflösung via Prisma; Shopify-Ordersuche + Fulfillment |
-| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3**: Pflichtfeld `token`, SHA-256-Lookup, Credential-Laden aus `entity_credentials`, Bestellsuche (Name primär, numerische ID Fallback), `fulfillmentCreate` mit `notifyCustomer: true`, konsistente JSON-Fehler, `pnpm validate` grün |
-| Offen / nächster Schritt | E2E mit realen Shop-Daten im Deployment und Carrier-Mapping bei Bedarf feinjustieren |
+| Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`; Token-Hash + Entity-Auflösung via Prisma |
+| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3a**: Pflichtfeld `token`, SHA-256-Hash-Lookup, Shopify-Fulfillment inkl. strukturierter Fehler; Shop-Domain-Normalisierung + spezifische DNS/Netz-Fehlercodes |
+| Offen / nächster Schritt | **Phase 3b (nice-to-have)**: Endpoint + UI „Offene Bestellungen“ |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -66,14 +66,6 @@ Route `/l/…` mit Formular, `/` ohne blindes Absenden, `POST` mit Pflichtfeld `
 
 **Ziel:** Nach erfolgreicher Auflösung `entityId`: Bestellung finden, Fulfillment anlegen, Kunde benachrichtigen (wie in `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` → Abschnitt *Fulfillment-Logik*).
 
-### Phase 3 — Notizen (Stand, nur Repo)
-
-- `POST /api/tracking` lädt Shopify-Credentials pro `entityId` aus `entity_credentials` (`shopify_shop`, `shopify_access_token`), entschlüsselt Token mit `ENCRYPTION_KEY` falls verschlüsselt.
-- Bestellsuche: primär über Order-`name` (`#1001`/`1001` normalisiert), optional numerische Shopify-ID als Fallback.
-- Fulfillment: offene Fulfillment Orders zur Bestellung, Mutation `fulfillmentCreate` mit `trackingNumber`, Carrier-Mapping (DHL/DPD/UPS/Sonstiges), `notifyCustomer: true`.
-- API-Fehler strukturiert als `{ ok: false, error: { code, message } }` mit Status 400/401/403/404/502/503.
-- Erfolgsantwort enthält: `ok`, `entityId`, `orderId`, `orderName`, `fulfillmentId`.
-
 ### Phase 3 — Konkreter Auftrag (jetzt ausführen)
 
 1. `POST /api/tracking` so erweitern, dass nach `entityId`-Auflösung der Shopify-Zugang für diese Entität geladen wird (Quelle wie mit Kopf abgestimmt: gemeinsame Credentials-Quelle oder Manage-API).
@@ -95,6 +87,24 @@ Route `/l/…` mit Formular, `/` ohne blindes Absenden, `POST` mit Pflichtfeld `
 - `pnpm run lint` und (falls vorhanden) `pnpm run test` / `pnpm run validate` im `tracking-portal` laufen grün.
 - Danach **Pflicht**: Abschnitt **Stand (für `project-shop` / Kopf)** oben aktualisieren.
 
+### Phase 3a — Stabilisierung (Pflicht, nach erstem Live-Test)
+
+1. **Shop-Domain normalisieren/validieren** vor Shopify-Request:
+   - Falls `shopify_shop` keinen Punkt enthält (z. B. `dev-shop-pro-atalblt4`), automatisch `.myshopify.com` anhängen.
+   - Wenn Host danach ungültig ist: sauberer Fehler `shop_domain_invalid` (400/503, aber **kein** generisches `shopify_unavailable`).
+2. **Spezifische Fehlercodes für DNS/Netz**:
+   - `ENOTFOUND` → `shop_domain_not_resolvable` mit Hinweis auf `shopify_shop` in Credentials.
+   - Timeout/Connection-Refused → `shopify_unreachable`.
+3. **Regression-Check**: bestehende Erfolgsfälle dürfen unverändert funktionieren.
+
+### Phase 3b — UX-Verbesserung „Offene Bestellungen“ (Nice-to-have, danach)
+
+1. Neuer Endpoint im Portal (token-gebunden), z. B. `GET /api/tracking/open-orders?token=...&limit=10`.
+2. Liefert die ersten offenen Bestellungen der zugehörigen Entität (`orderId`, `orderName`, optional `createdAt`).
+3. Formular bekommt Auswahl-Liste; Klick setzt `orderRef` automatisch.
+4. Fallback bleibt: manuelle Eingabe weiter möglich.
+5. Done erst, wenn API + UI + Lint/Validate grün und Stand-Block aktualisiert ist.
+
 ### Liefern (grober Ablauf)
 
 1. Pro **`entityId`** Shopify-Zugang laden (gleiche Quelle wie Manage: Credentials / Env-Muster — mit Team abstimmen, ob Lesen aus derselben DB-Tabelle `entity_credentials` oder Aufruf Manage-API).
@@ -115,6 +125,6 @@ Route `/l/…` mit Formular, `/` ohne blindes Absenden, `POST` mit Pflichtfeld `
 |-------|--------------|----------------|
 | 1     | Formular+API | MVP oben erfüllt, Doku-Log |
 | 2     | Token+Entity | `/l/...` + `token` in POST + Auflösung + Env-Doku + validate grün (`2026-05-01` — siehe Notizen oben) |
-| 3     | Shopify      | Fulfillment end-to-end + saubere Fehler (`2026-05-05` — siehe Notizen oben) |
+| 3     | Shopify      | Fulfillment end-to-end + saubere Fehler |
 
 Bei Unklarheiten: **eine** Quelle — `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`.
