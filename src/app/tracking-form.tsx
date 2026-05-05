@@ -1,10 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
+  ERROR_BANNER_CLASS,
+  INFO_BANNER_CLASS,
   INNER_FORM_CLASS,
   INPUT_CLASS,
   PRIMARY_BUTTON_CLASS,
+  SUCCESS_BANNER_CLASS,
 } from "@/lib/design-classes";
 
 const CARRIERS = ["DHL", "DPD", "UPS", "Sonstiges"] as const;
@@ -28,52 +31,50 @@ export function TrackingForm({ token }: Props) {
   const [ordersState, setOrdersState] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState("");
 
-  useEffect(() => {
-    let canceled = false;
-    async function loadOpenOrders() {
-      setOrdersState("loading");
-      try {
-        const res = await fetch(
-          `/api/tracking/open-orders?token=${encodeURIComponent(token)}&limit=10`,
-          { method: "GET" },
-        );
-        const data: unknown = await res.json().catch(() => null);
-        if (!res.ok) {
-          throw new Error(
-            data &&
-              typeof data === "object" &&
-              "error" in data
-              ? extractErrorMessage((data as { error: unknown }).error)
-              : `Fehler (${res.status})`,
-          );
-        }
-        const orders =
+  const loadOpenOrders = useCallback(async () => {
+    setOrdersState("loading");
+    setOrdersError(null);
+    try {
+      const res = await fetch(
+        `/api/tracking/open-orders?token=${encodeURIComponent(token)}&limit=10`,
+        { method: "GET" },
+      );
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
           data &&
-          typeof data === "object" &&
-          "orders" in data &&
-          Array.isArray((data as { orders: unknown }).orders)
-            ? ((data as { orders: Array<{ orderId: string; orderName: string; createdAt?: string }> }).orders ?? [])
-            : [];
-        if (canceled) {
-          return;
-        }
-        setOpenOrders(orders);
-        setOrdersState("loaded");
-      } catch {
-        if (canceled) {
-          return;
-        }
-        setOpenOrders([]);
-        setOrdersState("error");
+            typeof data === "object" &&
+            "error" in data
+            ? extractErrorMessage((data as { error: unknown }).error)
+            : `Fehler (${res.status})`,
+        );
       }
+      const orders =
+        data &&
+        typeof data === "object" &&
+        "orders" in data &&
+        Array.isArray((data as { orders: unknown }).orders)
+          ? ((data as { orders: Array<{ orderId: string; orderName: string; createdAt?: string }> }).orders ?? [])
+          : [];
+      setOpenOrders(orders);
+      setOrdersState("loaded");
+    } catch (e) {
+      setOpenOrders([]);
+      setOrdersState("error");
+      setOrdersError(
+        e instanceof Error ? e.message : "Offene Bestellungen konnten nicht geladen werden.",
+      );
     }
-    loadOpenOrders();
-    return () => {
-      canceled = true;
-    };
   }, [token]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadOpenOrders();
+    });
+  }, [loadOpenOrders]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -111,6 +112,8 @@ export function TrackingForm({ token }: Props) {
           message: "Tracking wurde übermittelt.",
         });
         form.reset();
+        setSelectedOrderId("");
+        void loadOpenOrders();
         return;
       }
 
@@ -131,6 +134,12 @@ export function TrackingForm({ token }: Props) {
 
   return (
     <form onSubmit={onSubmit} className={INNER_FORM_CLASS} noValidate>
+      <p className={INFO_BANNER_CLASS}>
+        <span className="font-medium">Hinweis:</span> Dieses Formular gehört zur{" "}
+        <strong>Kawai Labs Shopverwaltung</strong>. Nutzen Sie nur Links, die Sie
+        vom Betreiber erhalten haben.
+      </p>
+
       <div className="flex flex-col gap-2">
         <label htmlFor="orderRef" className="text-sm font-medium text-gray-900">
           Bestellnummer <span className="text-red-600">*</span>
@@ -140,12 +149,21 @@ export function TrackingForm({ token }: Props) {
         )}
         {ordersState === "loaded" && openOrders.length > 0 && (
           <div className="flex flex-col gap-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-            <label
-              htmlFor="openOrders"
-              className="text-xs font-medium uppercase tracking-wide text-gray-600"
-            >
-              Offene Bestellungen
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="openOrders"
+                className="text-xs font-medium uppercase tracking-wide text-gray-600"
+              >
+                Offene Bestellungen
+              </label>
+              <button
+                type="button"
+                onClick={() => void loadOpenOrders()}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400"
+              >
+                Aktualisieren
+              </button>
+            </div>
             <select
               id="openOrders"
               value={selectedOrderId}
@@ -173,6 +191,17 @@ export function TrackingForm({ token }: Props) {
               ))}
             </select>
           </div>
+        )}
+        {ordersState === "loaded" && openOrders.length === 0 && (
+          <p className="text-xs text-gray-600">
+            Keine offenen Bestellungen gefunden — bitte Bestellnummer manuell
+            eingeben.
+          </p>
+        )}
+        {ordersState === "error" && ordersError && (
+          <p className={`${ERROR_BANNER_CLASS} text-xs`} role="alert">
+            {ordersError}
+          </p>
         )}
         <input
           id="orderRef"
@@ -232,15 +261,13 @@ export function TrackingForm({ token }: Props) {
         {state.status === "submitting" ? "Wird gesendet…" : "Tracking melden"}
       </button>
 
-      {(state.status === "success" || state.status === "error") && (
-        <p
-          className={
-            state.status === "success"
-              ? "text-sm text-green-700"
-              : "text-sm text-red-700"
-          }
-          role="status"
-        >
+      {state.status === "success" && (
+        <p className={SUCCESS_BANNER_CLASS} role="status">
+          {state.message}
+        </p>
+      )}
+      {state.status === "error" && (
+        <p className={ERROR_BANNER_CLASS} role="alert">
           {state.message}
         </p>
       )}

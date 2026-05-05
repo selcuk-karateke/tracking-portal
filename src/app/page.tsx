@@ -1,16 +1,19 @@
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col items-center px-4 py-10 sm:px-6 lg:px-8">
-      <main className="flex w-full max-w-lg flex-col gap-6">
-        <div className="space-y-2 text-center sm:text-left">
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
-            Tracking melden
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <div className="flex w-full max-w-lg flex-col gap-6">
+        <div className="space-y-3 text-center sm:text-left">
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+            Lieferanten-Tracking
           </h1>
+          <h2 className="text-base font-medium text-gray-800 sm:text-lg">
+            Persönlichen Link verwenden
+          </h2>
           <p className="text-sm leading-relaxed text-gray-600">
             Bitte nutzen Sie den <strong>persönlichen Lieferanten-Link</strong>{" "}
-            aus Ihrer Einladung (E-Mail oder Nachricht von uns). Darin ist das
-            Portal mit dem richtigen Kontext hinterlegt — ohne diesen Link kann
-            keine Meldung zugeordnet werden.
+            aus Ihrer Einladung (E-Mail oder Nachricht). Darin ist das Portal mit
+            dem richtigen Kontext hinterlegt — ohne diesen Link kann keine
+            Meldung zugeordnet werden.
           </p>
           <p className="text-sm leading-relaxed text-gray-500">
             Der Link beginnt typischerweise mit dem Pfad{" "}
@@ -20,7 +23,25 @@ export default function Home() {
             .
           </p>
         </div>
-      </main>
+
+        <section
+          id="portal-hilfe"
+          className="scroll-mt-28 rounded-lg border border-gray-300 bg-white p-5 shadow-sm sm:p-6"
+          aria-labelledby="hilfe-heading"
+        >
+          <h2
+            id="hilfe-heading"
+            className="text-base font-semibold text-gray-900"
+          >
+            Hilfe
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-gray-600">
+            Sie befinden sich im Lieferanten-Tracking der{" "}
+            <strong>Kawai Labs Shopverwaltung</strong>. Wenn Sie keinen Link
+            haben, wenden Sie sich bitte an Ihren Ansprechpartner.
+          </p>
+        </section>
+      </div>
     </div>
   );
 }

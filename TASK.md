@@ -2,24 +2,92 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05 (Phase 3b umgesetzt)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05
 
 | Bereich | Status |
 |---------|--------|
-| Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`; Token-Hash + Entity-Auflösung via Prisma |
-| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3a + 3b**: inkl. Endpoint `GET /api/tracking/open-orders` (token-gebunden), UI-Auswahlliste „Offene Bestellungen“ mit Fallback auf manuelle Eingabe; Validate grün |
-| Offen / nächster Schritt | Live-Feinschliff: Ergebnis-UX und Carrier-Mapping mit echten Shop-Daten prüfen |
+| Repo / Branch | `tracking-portal` (Branch: `development`) |
+| Was existiert (Dateien, Routen) | UI `/`, `/l/[token]`; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Prisma Token + Shopify-Fulfillment; **Portal-Nav** (`src/components/portal-nav.tsx`) im Manage-Stil |
+| Was ist umgesetzt & getestet | **Phase 1–3 + 3a/3b**; **Design-Parität (Pflicht):** Nav (Logo/Breakpoints, Nav-Aktionen ≤1024px nur Icons), `main` auf `bg-gray-50`, Typo h1/h2, Form-Banner (Info/Erfolg/Fehler), Trust-Hinweis, Footer; Open-Orders inkl. Aktualisieren + leere Liste + Fehlerbanner; `pnpm validate` grün |
+| Offen / nächster Schritt | Visueller Smoke durch Kopf; optional Screenshots nach `docs/design-screenshots.md` / `docs/screenshots/*` legen und hier verlinken |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
+## Aufträge vom Kopf / Inbox (Pflicht-Eingang)
+
+**So benutzt ihr das (einfach):**
+
+- **Neuer Auftrag:** unten eine neue Karte `### YYYY-MM-DD — Kurztitel` anhängen.
+- **Inhalt minimal:** *Was* (1–5 Stichpunkte), *Done wenn* (1–3 Checks), *Priorität* (P0/P1).
+- **Agent 2:** beim Anpacken Status auf `🟡 in Arbeit` setzen; beim Ende `🟢 erledigt` oder `🔴 blockiert` + **eine** Zeile Grund.
+- **Kein Chat nötig:** alles, was zählt, steht in dieser Datei + im **Stand**-Block oben.
+
+### Vorlage (kopieren)
+
+```markdown
+### YYYY-MM-DD — Kurztitel
+
+- **Priorität:** P0|P1
+- **Auftrag:**
+  - …
+- **Done wenn:**
+  - …
+- **Status:** ⚪ offen | 🟡 in Arbeit | 🟢 erledigt | 🔴 blockiert
+- **Notiz Agent 2:** …
+```
+
+<!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-05-05 — Design-Parität Portal ↔ Manage
+
+- **Priorität:** P0
+- **Auftrag:**
+  - Nav/Header wie Manage (Logo, Breakpoints, ≤1024px nur Icons bei Nav-Aktionen)
+  - Typografie h1/h2, Form-Styles, Trust-Hinweis, responsives Layout, `bg-gray-50` im Content
+- **Done wenn:**
+  - Stand-Block aktualisiert; `pnpm validate` grün; Screenshot-Pfade dokumentiert (`docs/design-screenshots.md`)
+- **Status:** 🟢 erledigt
+- **Notiz Agent 2:** `PortalNav`, Banner-Klassen in `design-classes`, Seiten `/` und `/l/[token]` angepasst, Formular Info/Erfolg/Fehler-Banner + Open-Orders-UX
+
 ## Kommunikation
 
-**Keine Statusberichte oder „Abnahme“-Texte an einzelne Personen per Chat.** Alles, was das Team wissen muss, gehört **ins Repository**:
+**Keine Statusberichte oder „Abnahme“-Texte an einzelne Personen per Chat.** Alles, was das Team wissen muss, gehört **ins Repository**.
+
+**Strikte Arbeitsgrenze:**
+- Agent 2 ändert **nur** Dateien im Repo `tracking-portal`.
+- Kopf/Haupt-Agent ändert **nur** Dateien im Repo `project-shop`.
+- Übergabe erfolgt ausschließlich über die MDs (`TASK.md` ↔ `TRACKING_PORTAL_INTEGRATION.md`), nicht per Zuruf.
+
+**Zugriff auf `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`:** Diese Datei liegt **nicht** im `tracking-portal`-Repo. Agent 2 sieht sie nur, wenn **beide Repos** im gleichen Workspace geöffnet sind **oder** der Kopf den relevanten Auftrag (wie hier) **in `TASK.md` spiegelt**. Die kanonische, ausführliche Beschreibung bleibt in `project-shop`; `TASK.md` enthält die operative Kurzfassung + Abnahme.
 
 1. Checkliste unten aktualisieren (Phase + Datum).
 2. Eine Zeile in `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` unter **Log** (Pflicht, sobald `project-shop` im Workspace liegt und die Änderung gepusht werden kann).
 3. Optional: kurze technische Stichworte unter **Phase X — Notizen (Stand)** in dieser Datei — nicht in Messenger.
+
+---
+
+## Design-Parität (Pflicht) — Portal ↔ Manage
+
+**Ziel:** Endnutzer sollen beim Öffnen des Tracking-Links **keinen „Fake-Seite“-Eindruck** bekommen; UI wirkt wie ein nahtloser Teil von **Kawai Labs Shopverwaltung** (`project-shop`).
+
+**Umsetzung:** nur im Repo `tracking-portal` (Agent 2). Referenz-Look: aktuelle Manage-Oberfläche (Header/Nav, Formular-Karten, Buttons, Typo).
+
+### Muss
+
+1. **Top-Nav / Header:** gleiches Prinzip wie Manage (Logo + kompakte Aktionen); bei `<=1024px` **nur Icons** für Haupt-Nav-Punkte, gleiche Hover/Cursor/Focus-States.
+2. **Typografie:** gleiche Heading-Hierarchie und Größenlogik wie Manage (`h2`/`h3`/Section-Titel).
+3. **Form-UI:** Inputs, Select, Primärbutton, Fehler-/Info-Banner im gleichen Stil wie Manage.
+4. **Trust:** kurzer sichtbarer Hinweis „Teil von Kawai Labs Shopverwaltung“ (ohne rechtlichen Overkill).
+5. **Responsive:** Mobile, Tablet (1024), Desktop ohne gebrochene Layouts.
+
+### Done
+
+- Stand-Block oben aktualisieren + **Screenshots** (Mobile/Tablet/Desktop) in `TASK.md` verlinken oder als kurze Pfad-Notiz (`docs/design-screenshots.md` + `docs/screenshots/*` im Portal-Repo).
+- Kopf + Betreiber: visueller Smoke — Manage-Tab → generierter Link → Portal wirkt „aus einem Guss“.
+
+**Stand Umsetzung (Agent 2):** Nav, Footer, Seitenstruktur, Trust-/Info-Banner, Form-Feedback-Banner umgesetzt. Screenshots bei Bedarf durch Betreiber ergänzen.
+
+**Vollständige Spez (Kopf):** `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` → Abschnitt *Auftrag an Agent 2: Design-Parität*.
 
 ---
 
