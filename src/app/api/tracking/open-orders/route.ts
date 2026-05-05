@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveEntityIdFromToken } from "@/lib/resolve-entity-from-token";
 import { loadShopifyCredentials } from "@/lib/shopify-credentials";
-import { listOpenOrders, type ShopifyErrorCode } from "@/lib/shopify-fulfillment";
+import {
+  listOpenOrders,
+  type OpenOrdersFulfillmentFilter,
+  type ShopifyErrorCode,
+} from "@/lib/shopify-fulfillment";
 
 type ApiError = {
   ok: false;
@@ -26,6 +30,26 @@ function parseLimit(value: string | null): number {
   const n = Number(value ?? "10");
   if (!Number.isFinite(n)) return 10;
   return Math.max(1, Math.min(Math.floor(n), 25));
+}
+
+function parseAfter(value: string | null): string | null {
+  const v = value?.trim() ?? "";
+  if (!v) return null;
+  if (v.length > 512) return null;
+  return v;
+}
+
+function parseSearch(value: string | null): string | undefined {
+  const v = value?.trim() ?? "";
+  if (!v) return undefined;
+  return v.slice(0, 80);
+}
+
+function parseFulfillmentFilter(
+  value: string | null,
+): OpenOrdersFulfillmentFilter {
+  if (value === "unfulfilled" || value === "partial") return value;
+  return "open";
 }
 
 function mapShopifyError(code: ShopifyErrorCode): { status: number; message: string } {
@@ -121,6 +145,11 @@ export async function GET(request: NextRequest) {
     shop: credentials.shop,
     accessToken: credentials.accessToken,
     limit: parseLimit(request.nextUrl.searchParams.get("limit")),
+    after: parseAfter(request.nextUrl.searchParams.get("after")),
+    search: parseSearch(request.nextUrl.searchParams.get("q")),
+    fulfillmentFilter: parseFulfillmentFilter(
+      request.nextUrl.searchParams.get("status"),
+    ),
   });
 
   if (!result.ok) {
@@ -132,5 +161,6 @@ export async function GET(request: NextRequest) {
     ok: true,
     entityId: resolved.entityId,
     orders: result.orders,
+    pageInfo: result.pageInfo,
   });
 }

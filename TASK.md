@@ -6,10 +6,10 @@
 
 | Bereich | Status |
 |---------|--------|
-| Repo / Branch | `tracking-portal` (Branch: `development`) |
-| Was existiert (Dateien, Routen) | UI `/`, `/l/[token]`; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Prisma Token + Shopify-Fulfillment; **Portal-Nav** (`src/components/portal-nav.tsx`) im Manage-Stil |
-| Was ist umgesetzt & getestet | **Phase 1–3 + 3a/3b**; **Design-Parität (Pflicht):** Nav (Logo/Breakpoints, Nav-Aktionen ≤1024px nur Icons), `main` auf `bg-gray-50`, Typo h1/h2, Form-Banner (Info/Erfolg/Fehler), Trust-Hinweis, Footer; Open-Orders inkl. Aktualisieren + leere Liste + Fehlerbanner; `pnpm validate` grün |
-| Offen / nächster Schritt | Visueller Smoke durch Kopf; optional Screenshots nach `docs/design-screenshots.md` / `docs/screenshots/*` legen und hier verlinken |
+| Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Hash + Entity-Auflösung via Prisma |
+| Was ist umgesetzt & getestet | **Phase 1–3** (inkl. Fulfillment), Design-Parität (Nav/Form), **Offene Bestellungen** als Tabelle mit Suche (`q`), Pagination (`after` + `pageInfo`), Filter `status=open|unfulfilled|partial`; Validate/Lint als Pflicht |
+| Offen / nächster Schritt | Feintuning nach Manage-Screenshots; optional Datumsfilter sobald gewünscht; Log-Zeile in `project-shop` siehe Kommunikation unten. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -38,16 +38,18 @@
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
 
-### 2026-05-05 — Design-Parität Portal ↔ Manage
+### 2026-05-05 — Header/Nav schlank + Manage-Look
 
-- **Priorität:** P0
+- **Priorität:** P0 (Nav), P1 (Tabelle Bestellungen)
 - **Auftrag:**
-  - Nav/Header wie Manage (Logo, Breakpoints, ≤1024px nur Icons bei Nav-Aktionen)
-  - Typografie h1/h2, Form-Styles, Trust-Hinweis, responsives Layout, `bg-gray-50` im Content
+  - **Nav:** Gleiche Typo-Basis wie `project-shop` (kein abweichender Font-Stack). **Logo:** wie Manage (`/logo.png`, gleiches Verhalten bei fehlender Datei).
+  - **Header entlasten:** kein langer Untertitel in der Top-Leiste („Lieferanten-Tracking · Teil der …“ voll breit); Vertrauen/Hinweis **kurz** (Badge/eine Zeile) **oder** nur im bestehenden Hinweis-Kasten im Formular — nicht doppelt vollflächig.
+  - **Nice-to-have:** Bereich „Offene Bestellungen“ **nicht** als Dropdown — **Tabelle/Liste** wie in Manage: **Pagination**, **Suche**, sinnvolle **Filter** (z. B. Datum/Status wenn API hergibt); Zeilenklick setzt `orderRef`; manuelle Eingabe bleibt.
 - **Done wenn:**
-  - Stand-Block aktualisiert; `pnpm validate` grün; Screenshot-Pfade dokumentiert (`docs/design-screenshots.md`)
+  - Screenshot 1024px + Desktop: Nav wirkt wie Manage (Logo, Font, keine überladene Textzeile).
+  - (P1) Offene Bestellungen als Tabelle mit Suche + Pagination nutzbar; Lint/Validate grün.
 - **Status:** 🟢 erledigt
-- **Notiz Agent 2:** `PortalNav`, Banner-Klassen in `design-classes`, Seiten `/` und `/l/[token]` angepasst, Formular Info/Erfolg/Fehler-Banner + Open-Orders-UX
+- **Notiz Agent 2:** Nav: kompaktes „Kawai Labs“-Badge, kein mobiler Trust-Streifen; voller Hinweis nur im Formular-Info-Banner. Open-Orders-API: `q`, `after`, `status`, Response `pageInfo`. UI: Tabelle, Zeilenklick → `orderRef`.
 
 ## Kommunikation
 
@@ -82,10 +84,8 @@
 
 ### Done
 
-- Stand-Block oben aktualisieren + **Screenshots** (Mobile/Tablet/Desktop) in `TASK.md` verlinken oder als kurze Pfad-Notiz (`docs/design-screenshots.md` + `docs/screenshots/*` im Portal-Repo).
+- Stand-Block oben aktualisieren + **Screenshots** (Mobile/Tablet/Desktop) in `TASK.md` verlinken oder als kurze Pfad-Notiz (`/docs/…` im Portal-Repo, falls ihr Screens dort ablegt).
 - Kopf + Betreiber: visueller Smoke — Manage-Tab → generierter Link → Portal wirkt „aus einem Guss“.
-
-**Stand Umsetzung (Agent 2):** Nav, Footer, Seitenstruktur, Trust-/Info-Banner, Form-Feedback-Banner umgesetzt. Screenshots bei Bedarf durch Betreiber ergänzen.
 
 **Vollständige Spez (Kopf):** `../project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` → Abschnitt *Auftrag an Agent 2: Design-Parität*.
 

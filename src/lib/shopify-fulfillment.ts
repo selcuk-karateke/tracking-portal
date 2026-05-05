@@ -175,12 +175,26 @@ export async function createFulfillmentForOrder(params: {
   };
 }
 
+export type OpenOrdersFulfillmentFilter = "open" | "unfulfilled" | "partial";
+
 export async function listOpenOrders(params: {
   shop: string;
   accessToken: string;
   limit: number;
+  after?: string | null;
+  search?: string;
+  fulfillmentFilter?: OpenOrdersFulfillmentFilter;
 }): Promise<
-  | { ok: true; orders: Array<{ orderId: string; orderName: string; createdAt?: string }> }
+  | {
+      ok: true;
+      orders: Array<{
+        orderId: string;
+        orderName: string;
+        createdAt?: string;
+        fulfillmentStatus: string | null;
+      }>;
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    }
   | { ok: false; code: ShopifyErrorCode }
 > {
   const normalizedShop = normalizeShopDomain(params.shop);
@@ -189,8 +203,28 @@ export async function listOpenOrders(params: {
   }
 
   const cap = Math.max(1, Math.min(params.limit, 25));
+  const filter = params.fulfillmentFilter ?? "open";
+  let fulfillmentClause: string;
+  if (filter === "unfulfilled") {
+    fulfillmentClause = "fulfillment_status:unfulfilled";
+  } else if (filter === "partial") {
+    fulfillmentClause = "fulfillment_status:partial";
+  } else {
+    fulfillmentClause =
+      "(fulfillment_status:unfulfilled OR fulfillment_status:partial)";
+  }
+
+  const search = params.search?.trim() ?? "";
+  const nameClause =
+    search !== ""
+      ? ` AND name:*${escapeShopifyQueryToken(search.replace(/^#+/, ""))}*`
+      : "";
+
+  const queryString = `${fulfillmentClause}${nameClause}`;
+
   const result = await graphqlRequest<{
     orders: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
       nodes: Array<{
         id: string;
         name: string;
@@ -201,8 +235,12 @@ export async function listOpenOrders(params: {
   }>({
     shop: normalizedShop.shop,
     accessToken: params.accessToken,
-    query: `query openOrders($first: Int!) {
-      orders(first: $first, sortKey: CREATED_AT, reverse: true, query: "fulfillment_status:unfulfilled OR fulfillment_status:partial") {
+    query: `query openOrders($first: Int!, $after: String, $q: String!) {
+      orders(first: $first, after: $after, query: $q, sortKey: CREATED_AT, reverse: true) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           id
           name
@@ -211,7 +249,11 @@ export async function listOpenOrders(params: {
         }
       }
     }`,
-    variables: { first: cap },
+    variables: {
+      first: cap,
+      after: params.after?.trim() || null,
+      q: queryString,
+    },
   });
   if (!result.ok) {
     return result;
@@ -223,8 +265,17 @@ export async function listOpenOrders(params: {
       orderId: order.id,
       orderName: order.name,
       createdAt: order.createdAt,
+      fulfillmentStatus: order.displayFulfillmentStatus,
     })),
+    pageInfo: {
+      hasNextPage: result.data.orders.pageInfo.hasNextPage,
+      endCursor: result.data.orders.pageInfo.endCursor,
+    },
   };
+}
+
+function escapeShopifyQueryToken(raw: string): string {
+  return raw.replace(/["\\]/g, "\\$&");
 }
 
 function normalizeOrderRef(value: string): string {

@@ -12,6 +12,9 @@ export const SUCCESS_BANNER_CLASS = `rounded-lg ${BORDER} border-green-200 bg-gr
 
 export const ERROR_BANNER_CLASS = `rounded-lg ${BORDER} border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800`;
 
+/** Tabellen-Container wie in Manage (`MODULE_TABLE_WRAPPER_CLASS`). */
+export const MODULE_TABLE_WRAPPER_CLASS = `rounded-lg ${BORDER} border-gray-300 overflow-hidden bg-white shadow-sm`;
+
 const INPUT_CLASS_BASE = `px-3 py-2 text-sm text-gray-900 bg-white ${BORDER} border-gray-400 rounded-lg placeholder:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-70`;
 
 export const INPUT_CLASS = `w-full ${INPUT_CLASS_BASE}`;
