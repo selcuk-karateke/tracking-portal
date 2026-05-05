@@ -7,9 +7,9 @@
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Hash + Entity-Auflösung via Prisma |
-| Was ist umgesetzt & getestet | **Phase 1–3** (inkl. Fulfillment), Design-Parität (Nav/Form), **Offene Bestellungen** als Tabelle mit Suche (`q`), Pagination (`after` + `pageInfo`), Filter `status=open|unfulfilled|partial`; Validate/Lint als Pflicht |
-| Offen / nächster Schritt | Feintuning nach Manage-Screenshots; optional Datumsfilter sobald gewünscht; Log-Zeile in `project-shop` siehe Kommunikation unten. |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Hash + Entity-Auflösung via Prisma; `public/logo.png` |
+| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; **Typo wie Manage** (Arial auf `body`); Nav kompakt, Logo `/logo.png`; offene Bestellungen als **Tabelle** mit Suche/Pagination/Filter; Validate/Lint grün |
+| Offen / nächster Schritt | Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` wenn gepusht wird; Screenshots optional in Repo ablegen. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -38,18 +38,29 @@
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
 
-### 2026-05-05 — Header/Nav schlank + Manage-Look
+### 2026-05-05 — Header/Nav: wie Manage (P0)
 
-- **Priorität:** P0 (Nav), P1 (Tabelle Bestellungen)
+- **Priorität:** P0
+- **Kontext (Screenshot Betreiber):** Oben wirkt die Portal-Nav „fremd“: zu viel Text links, kein sichtbares Logo, wirkt gequetscht. Ziel: **optisch wie `project-shop`**, ohne Fake-Site-Eindruck.
 - **Auftrag:**
-  - **Nav:** Gleiche Typo-Basis wie `project-shop` (kein abweichender Font-Stack). **Logo:** wie Manage (`/logo.png`, gleiches Verhalten bei fehlender Datei).
-  - **Header entlasten:** kein langer Untertitel in der Top-Leiste („Lieferanten-Tracking · Teil der …“ voll breit); Vertrauen/Hinweis **kurz** (Badge/eine Zeile) **oder** nur im bestehenden Hinweis-Kasten im Formular — nicht doppelt vollflächig.
-  - **Nice-to-have:** Bereich „Offene Bestellungen“ **nicht** als Dropdown — **Tabelle/Liste** wie in Manage: **Pagination**, **Suche**, sinnvolle **Filter** (z. B. Datum/Status wenn API hergibt); Zeilenklick setzt `orderRef`; manuelle Eingabe bleibt.
+  1. **Logo:** `public/logo.png` ist im Repo angelegt (Kopie aus Manage). Sicherstellen, dass es **committed** und in Deploy unter `/logo.png` erreichbar ist; `<img src="/logo.png" …>` wie in `components/nav-logo.tsx` (Manage).
+  2. **Typo wie Manage:** In `project-shop` setzt `app/globals.css` am `body` u. a. **`font-family: Arial, Helvetica, sans-serif`** — Portal aktuell Geist auf `body`. Für Parität: **`src/app/globals.css`** so anpassen, dass **`body`** dieselbe Schriftregel wie Manage hat (Tailwind `@theme` / `font-sans` kann unverändert bleiben oder bewusst angleichen — wichtig ist: **gleicher sichtbarer Fließtext** wie Manage).
+  3. **Nav entlasten:** Link-Cluster links **verschlanken** — kein langer Untertitel in der Zeile, kein „Badge-Stapel“, der Platz frisst. Trust-Hinweis **nicht** in die Top-Nav quetschen; **eine** kurze Zeile oder nur Logo + Kurzname; Details in Hilfe/Info-Box im Formular (bereits vorhanden).
+  4. **Rechte Nav-Aktionen:** Gleiche Interaktion wie Manage-Nav (`cursor-pointer`, Hover, Fokus-Ring, bei `≤1024px` nur Icons mit `aria-label`/`title`).
 - **Done wenn:**
-  - Screenshot 1024px + Desktop: Nav wirkt wie Manage (Logo, Font, keine überladene Textzeile).
-  - (P1) Offene Bestellungen als Tabelle mit Suche + Pagination nutzbar; Lint/Validate grün.
+  - Logo sichtbar (wenn Datei deployed), Nav auf 1024px nicht überladen, Schrift wirkt wie Manage-Seite.
+  - `pnpm run lint` / `validate` grün.
 - **Status:** 🟢 erledigt
-- **Notiz Agent 2:** Nav: kompaktes „Kawai Labs“-Badge, kein mobiler Trust-Streifen; voller Hinweis nur im Formular-Info-Banner. Open-Orders-API: `q`, `after`, `status`, Response `pageInfo`. UI: Tabelle, Zeilenklick → `orderRef`.
+- **Notiz Agent 2:** Geist entfernt; `globals.css` + `body` Arial/Helvetica; Nav ohne Zusatz-Badge; Icon-Links mit `aria-label` + `cursor-pointer`; Logo-`img` mit Maßen/`object-contain`.
+
+### 2026-05-05 — Offene Bestellungen: Tabelle statt Dropdown (P1)
+
+- **Priorität:** P1 (Nice-to-have nach Nav-P0)
+- **Auftrag:** Dropdown „offene Bestellungen“ durch eine **Liste/Tabelle** ersetzen im Stil der Manage-Oberfläche (sortierbare Spalten optional, **Suche/Filter** sinnvoll z. B. nach `#1001` / Name, **Pagination** oder „mehr laden“, Zeilen-Klick setzt `orderRef`).
+- **API:** Bestehenden token-gebundenen Endpoint nutzen oder erweitern (`GET …/open-orders` o. ä.); Fehler/Loading-Zustände wie übriges Portal.
+- **Done wenn:** Lieferant kann ohne Dropdown schneller die richtige Zeile finden; manuelle Eingabe bleibt möglich; Lint/Validate grün.
+- **Status:** 🟢 erledigt
+- **Notiz Agent 2:** `GET /api/tracking/open-orders` mit `q`/`after`/`status` + `pageInfo`; UI in `tracking-form.tsx` (Tabelle, Zeilenklick → `orderRef`).
 
 ## Kommunikation
 

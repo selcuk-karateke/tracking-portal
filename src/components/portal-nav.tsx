@@ -44,7 +44,7 @@ function IconHelp({ className }: { className?: string }) {
 }
 
 const NAV_ACTION_CLASS =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400";
 
 export function PortalNav() {
   return (
@@ -55,15 +55,18 @@ export function PortalNav() {
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Link
                 href="/"
-                className="flex min-w-0 items-center gap-2 text-base font-semibold text-gray-900 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 sm:text-lg"
+                className="flex min-w-0 cursor-pointer items-center gap-2 text-base font-semibold text-gray-900 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 sm:text-lg"
                 aria-label="Kawai Labs Shopverwaltung — Lieferanten-Tracking"
               >
-                {/* Optional: public/logo.png – bei 404 ausgeblendet */}
+                {/* Wie Manage: `public/logo.png` unter `/logo.png`; bei Fehler ausblenden */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/logo.png"
                   alt=""
-                  className="h-8 w-auto shrink-0"
+                  width={120}
+                  height={32}
+                  className="h-8 w-auto max-w-[120px] shrink-0 object-contain object-left"
+                  decoding="async"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
@@ -75,12 +78,6 @@ export function PortalNav() {
                   Tracking
                 </span>
               </Link>
-              <span
-                className="hidden shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600 sm:inline"
-                title="Kawai Labs Shopverwaltung"
-              >
-                Kawai Labs
-              </span>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
@@ -88,6 +85,7 @@ export function PortalNav() {
                 href="/"
                 className={NAV_ACTION_CLASS}
                 title="Zur Startseite"
+                aria-label="Zur Startseite"
               >
                 <IconHome className="shrink-0 text-gray-700" />
                 <span className="hidden min-[1025px]:inline">Start</span>
@@ -96,6 +94,7 @@ export function PortalNav() {
                 href="#portal-hilfe"
                 className={NAV_ACTION_CLASS}
                 title="Hilfe zum Formular"
+                aria-label="Hilfe zum Formular"
               >
                 <IconHelp className="shrink-0 text-gray-700" />
                 <span className="hidden min-[1025px]:inline">Hilfe</span>
