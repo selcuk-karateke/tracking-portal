@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05 (Phase 3b umgesetzt)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`; Token-Hash + Entity-Auflösung via Prisma |
-| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3a**: Pflichtfeld `token`, SHA-256-Hash-Lookup, Shopify-Fulfillment inkl. strukturierter Fehler; Shop-Domain-Normalisierung + spezifische DNS/Netz-Fehlercodes |
-| Offen / nächster Schritt | **Phase 3b (nice-to-have)**: Endpoint + UI „Offene Bestellungen“ |
+| Was ist umgesetzt & getestet | **Phase 1 + 2 + 3a + 3b**: inkl. Endpoint `GET /api/tracking/open-orders` (token-gebunden), UI-Auswahlliste „Offene Bestellungen“ mit Fallback auf manuelle Eingabe; Validate grün |
+| Offen / nächster Schritt | Live-Feinschliff: Ergebnis-UX und Carrier-Mapping mit echten Shop-Daten prüfen |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 

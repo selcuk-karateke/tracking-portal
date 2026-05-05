@@ -25,6 +25,7 @@ type OrderNode = {
   id: string;
   name: string;
   legacyResourceId?: string | null;
+  createdAt?: string;
 };
 
 export type ShopifyErrorCode =
@@ -174,6 +175,58 @@ export async function createFulfillmentForOrder(params: {
   };
 }
 
+export async function listOpenOrders(params: {
+  shop: string;
+  accessToken: string;
+  limit: number;
+}): Promise<
+  | { ok: true; orders: Array<{ orderId: string; orderName: string; createdAt?: string }> }
+  | { ok: false; code: ShopifyErrorCode }
+> {
+  const normalizedShop = normalizeShopDomain(params.shop);
+  if (!normalizedShop.ok) {
+    return normalizedShop;
+  }
+
+  const cap = Math.max(1, Math.min(params.limit, 25));
+  const result = await graphqlRequest<{
+    orders: {
+      nodes: Array<{
+        id: string;
+        name: string;
+        createdAt: string;
+        displayFulfillmentStatus: string | null;
+      }>;
+    };
+  }>({
+    shop: normalizedShop.shop,
+    accessToken: params.accessToken,
+    query: `query openOrders($first: Int!) {
+      orders(first: $first, sortKey: CREATED_AT, reverse: true, query: "fulfillment_status:unfulfilled OR fulfillment_status:partial") {
+        nodes {
+          id
+          name
+          createdAt
+          displayFulfillmentStatus
+        }
+      }
+    }`,
+    variables: { first: cap },
+  });
+  if (!result.ok) {
+    return result;
+  }
+
+  return {
+    ok: true,
+    orders: result.data.orders.nodes.map((order) => ({
+      orderId: order.id,
+      orderName: order.name,
+      createdAt: order.createdAt,
+    })),
+  };
+}
+
 function normalizeOrderRef(value: string): string {
   return value.trim().replace(/^#+/, "#");
 }
@@ -213,6 +266,7 @@ async function queryOrdersByName(params: {
           id
           name
           legacyResourceId
+          createdAt
         }
       }
     }`,
@@ -239,6 +293,7 @@ async function queryOrderByNumericId(params: {
         id
         name
         legacyResourceId
+        createdAt
       }
     }`,
     variables: { id: gid },
