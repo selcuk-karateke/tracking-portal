@@ -8,7 +8,7 @@
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Hash + Entity-Auflösung via Prisma; `public/logo.png` |
-| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; **Typo wie Manage** (Arial auf `body`); Nav kompakt, Logo `/logo.png`; offene Bestellungen als **Tabelle** mit Suche/Pagination/Filter; Validate/Lint grün |
+| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; **Typo wie Manage** (Arial auf `body`); Nav kompakt, Logo `/logo.png`; **Content nutzt volle Breite** bis `max-w-7xl` (kein `max-w-lg`-Schachtel mehr); offene Bestellungen als **Tabelle** mit Suche/Pagination/Filter; Validate/Lint grün |
 | Offen / nächster Schritt | Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` wenn gepusht wird; Screenshots optional in Repo ablegen. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
@@ -37,6 +37,15 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-05-05 — Layout: weniger Leerraum links/rechts (P0)
+
+- **Priorität:** P0
+- **Kontext (Screenshot):** Hauptinhalt war durch inneres `max-w-lg` schmaler als die Nav-Zeile (`max-w-7xl`) — große weiße Flächen links und rechts.
+- **Auftrag:** Inhalt unter `/` und `/l/[token]` **volle nutzbare Breite** innerhalb des bestehenden `max-w-7xl`-Wrappers; Tabelle/Formular aus einer Hand mit dem Header.
+- **Done wenn:** Auf Desktop wirkt die Spalte nicht unnötig schmal; Lint/Validate grün.
+- **Status:** 🟢 erledigt
+- **Notiz Agent 2:** `max-w-lg` + `items-center` auf den inneren Wrappern entfernt (`page.tsx`, `l/[token]/page.tsx`).
 
 ### 2026-05-05 — Header/Nav: wie Manage (P0)
 
@@ -92,6 +101,7 @@
 3. **Form-UI:** Inputs, Select, Primärbutton, Fehler-/Info-Banner im gleichen Stil wie Manage.
 4. **Trust:** kurzer sichtbarer Hinweis „Teil von Kawai Labs Shopverwaltung“ (ohne rechtlichen Overkill).
 5. **Responsive:** Mobile, Tablet (1024), Desktop ohne gebrochene Layouts.
+6. **Seitenbreite:** Hauptinhalt nutzt dieselbe horizontale Spanne wie Nav/Footer (`max-w-7xl`), **ohne** zusätzlich verengenden inneren Container — vermeidet große Leerflächen links/rechts auf Desktop.
 
 ### Done
 

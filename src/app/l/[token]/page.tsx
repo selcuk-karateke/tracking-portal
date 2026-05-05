@@ -9,8 +9,8 @@ export default async function TrackingLinkPage({ params }: PageProps) {
   const token = decodeURIComponent(raw);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-      <div className="flex w-full max-w-lg flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <div className="flex w-full flex-col gap-8">
         <div className="space-y-3 text-center sm:text-left">
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
             Tracking melden
