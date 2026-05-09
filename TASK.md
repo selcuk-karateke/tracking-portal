@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-05
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-06 (Schema/Migration bereinigt)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Hash + Entity-Auflösung via Prisma; `public/logo.png` |
-| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; **Typo wie Manage** (Arial auf `body`); Nav kompakt, Logo `/logo.png`; **Content nutzt volle Breite** bis `max-w-7xl` (kein `max-w-lg`-Schachtel mehr); offene Bestellungen als **Tabelle** mit Suche/Pagination/Filter; Validate/Lint grün |
-| Offen / nächster Schritt | Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` wenn gepusht wird; Screenshots optional in Repo ablegen. |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png` |
+| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; Design-Parität; Hersteller-Isolation (Open-Orders + Fulfillment nur bei freigegebener Bestellung). Falsche Portal-DDL-Migration entfernt; No-op-Migration: DDL nur über Manage. |
+| Offen / nächster Schritt | Smoke E2E nach Deploy; optional Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -37,6 +37,21 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-05-06 — Hersteller-Isolation (SupplierTrackingLink ↔ Portal) (P0)
+
+- **Priorität:** P0 (Sicherheit / Datenhoheit)
+- **Kontext:** Tracking-Links waren nur an `entityId` gebunden — das Portal konnte theoretisch **alle** offenen Shop-Bestellungen einer Entität sehen. In Manage gibt es jetzt **`supplier_tracking_links.manufacturerEmail`** (Pflicht bei **neuen** Links; gleiche Normalisierung wie Dropshipping: trim + lowercase).
+- **Auftrag:**
+  1. **Prisma:** Feld `manufacturerEmail` auf dem Link-Modell (wie Manage); Zugriff auf **`DropshippingDispatch`** (oder gleichwertige Tabelle) mit `entityId`, `manufacturerEmail`, `shopifyOrderId` / Order-Referenz — nur um die **erlaubte Menge** offener Bestellungen für Token + E-Mail zu bestimmen.
+  2. **`resolveEntityIdFromToken` (o. Ä.):** Neben `entityId` auch **`manufacturerEmail`** zurückgeben; wenn Link-Zeile **kein** `manufacturerEmail` hat → **klarer Fehler** (Legacy-Link: neuen Link in Manage erzeugen).
+  3. **`GET /api/tracking/open-orders`:** Nur Bestellungen, die zur Kombination **Entität + Hersteller-E-Mail** aus Dropshipping/Dispatch passen — nicht mehr die komplette offene Order-Liste der Entität.
+  4. **`POST /api/tracking`:** Vor Fulfillment prüfen, ob die anvisierte Bestellung in der **erlaubten Menge** liegt; sonst strukturierter Fehler (z. B. `ORDER_NOT_ALLOWED_FOR_SUPPLIER`), kein Fulfillment.
+- **Done wenn:**
+  - Mit zwei unterschiedlichen Hersteller-E-Mails am selben Shop sind die sichtbaren/erfüllbaren Bestellungen getrennt.
+  - Lint/Validate grün; kurze Notiz im **Stand**-Block oben + eine Zeile im Manage-Log `docs/TRACKING_PORTAL_INTEGRATION.md` (macht Kopf bei Bedarf nach Merge).
+- **Status:** 🟢 erledigt (Kopf 2026-05-06): Prisma an Manage angeglichen; Allowlist per Run-Join; GID/numerische Order-ID; fehlerhafte Migration entfernt.
+- **Notiz Agent 2:** Finale Korrektur im Repo: `prisma/schema.prisma` (Runs + Dispatches wie Manage), `supplier-order-allowlist.ts`, `shopify-order-id-match.ts`, `shopify-fulfillment`/`open-orders`/`tracking` Route; Migration `20260506130000_*` gelöscht, `20260506203000_portal_shared_schema_from_manage` = No-op DDL.
 
 ### 2026-05-05 — Layout: weniger Leerraum links/rechts (P0)
 

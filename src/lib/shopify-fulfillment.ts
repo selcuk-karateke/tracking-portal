@@ -189,6 +189,7 @@ export async function listOpenOrders(params: {
       ok: true;
       orders: Array<{
         orderId: string;
+        legacyResourceId: string | null;
         orderName: string;
         createdAt?: string;
         fulfillmentStatus: string | null;
@@ -227,6 +228,7 @@ export async function listOpenOrders(params: {
       pageInfo: { hasNextPage: boolean; endCursor: string | null };
       nodes: Array<{
         id: string;
+        legacyResourceId: string | null;
         name: string;
         createdAt: string;
         displayFulfillmentStatus: string | null;
@@ -243,6 +245,7 @@ export async function listOpenOrders(params: {
         }
         nodes {
           id
+          legacyResourceId
           name
           createdAt
           displayFulfillmentStatus
@@ -263,6 +266,7 @@ export async function listOpenOrders(params: {
     ok: true,
     orders: result.data.orders.nodes.map((order) => ({
       orderId: order.id,
+      legacyResourceId: order.legacyResourceId ?? null,
       orderName: order.name,
       createdAt: order.createdAt,
       fulfillmentStatus: order.displayFulfillmentStatus,

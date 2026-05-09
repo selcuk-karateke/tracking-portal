@@ -12,6 +12,8 @@ import {
   loadShopifyCredentials,
   type ShopifyCredentialReason,
 } from "@/lib/shopify-credentials";
+import { isOrderIdAllowedForSupplier } from "@/lib/shopify-order-id-match";
+import { getAllowedShopifyOrderIdsForSupplier } from "@/lib/supplier-order-allowlist";
 
 const CARRIERS = ["DHL", "DPD", "UPS", "Sonstiges"] as const;
 
@@ -47,6 +49,13 @@ function responseForResolveFailure(reason: ResolveFailureReason): {
   message: string;
 } {
   switch (reason) {
+    case "manufacturer_email_missing":
+      return {
+        status: 403,
+        code: "link_legacy_no_manufacturer_email",
+        message:
+          "Dieser Einladungs-Link ist veraltet (ohne Hersteller-Zuordnung). Bitte einen neuen Link in der Shopverwaltung anfordern.",
+      };
     case "not_found":
       return {
         status: 401,
@@ -228,6 +237,20 @@ export async function POST(request: NextRequest) {
   if (!orderResult.ok) {
     const failure = responseForShopifyFailure(orderResult.code);
     return errorResponse(failure.status, orderResult.code, failure.message);
+  }
+
+  const allowedIds = await getAllowedShopifyOrderIdsForSupplier(
+    resolved.entityId,
+    resolved.manufacturerEmail,
+  );
+  if (
+    !isOrderIdAllowedForSupplier(orderResult.order, allowedIds)
+  ) {
+    return errorResponse(
+      403,
+      "order_not_allowed_for_supplier",
+      "Diese Bestellung ist für Ihren Lieferanten-Zugang nicht freigegeben.",
+    );
   }
 
   const fulfillmentResult = await createFulfillmentForOrder({

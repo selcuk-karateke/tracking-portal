@@ -1,5 +1,5 @@
-// Read-only: Tabelle wird von project-shop (Manage) verwaltet.
-// Spaltennamen müssen mit Prisma-Modell in project-shop übereinstimmen.
+// Tabellen werden von project-shop (Manage) migriert; Portal: prisma generate + nur lesen.
+// Modelle müssen zu prisma/schema.prisma in project-shop passen (gleiche Tabellen/Spalten).
 
 generator client {
   provider = "prisma-client-js"
@@ -11,15 +11,82 @@ datasource db {
 }
 
 model SupplierTrackingLink {
-  id        String    @id
-  entityId  String
-  tokenHash String    @unique
-  label     String?
-  revokedAt DateTime?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
+  id                String    @id @default(uuid())
+  entityId          String
+  tokenHash         String    @unique
+  label             String?
+  manufacturerEmail String?
+  revokedAt         DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
 
+  @@index([entityId])
   @@map("supplier_tracking_links")
+}
+
+enum DropshippingRunStatus {
+  PENDING
+  PENDING_PAYMENT
+  RUNNING
+  SUCCESS
+  PARTIAL_SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum DropshippingDispatchStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+model DropshippingRun {
+  id               String                @id @default(uuid())
+  entityId         String?
+  shopifyOrderId   String
+  shopifyOrderName String?
+  webhookTopic     String                @default("orders/create")
+  triggerSource    String                @default("webhook")
+  webhookEventId   String?               @unique
+  status           DropshippingRunStatus @default(PENDING)
+  lineItemCount    Int                   @default(0)
+  dispatchCount    Int                   @default(0)
+  successCount     Int                   @default(0)
+  warnings         Json?
+  errorMessage     String?
+  pendingPayload   Json?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  dispatches DropshippingDispatch[]
+
+  @@index([entityId, createdAt])
+  @@index([shopifyOrderId])
+  @@index([status])
+  @@map("dropshipping_runs")
+}
+
+model DropshippingDispatch {
+  id                String                     @id @default(uuid())
+  runId             String
+  manufacturerEmail String
+  productTitle      String
+  variantTitle      String?
+  quantity          Int
+  status            DropshippingDispatchStatus @default(PENDING)
+  pdfFileName       String?
+  emailSentAt       DateTime?
+  errorMessage      String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  run DropshippingRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+  @@index([manufacturerEmail])
+  @@index([status])
+  @@map("dropshipping_dispatches")
 }
 
 model EntityCredential {

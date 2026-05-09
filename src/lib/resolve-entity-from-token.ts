@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { normalizeManufacturerEmail } from "./normalize-manufacturer-email";
 import { hashToken } from "./token-hash";
 
 export type ResolveFailureReason =
@@ -6,10 +7,12 @@ export type ResolveFailureReason =
   | "revoked"
   | "expired"
   | "db_unavailable"
-  | "not_configured";
+  | "not_configured"
+  /** Link ohne Hersteller-E-Mail (Altbestand) — neuer Link in Manage erforderlich. */
+  | "manufacturer_email_missing";
 
 export type ResolveEntityResult =
-  | { ok: true; entityId: string }
+  | { ok: true; entityId: string; manufacturerEmail: string }
   | { ok: false; reason: ResolveFailureReason };
 
 export async function resolveEntityIdFromToken(
@@ -36,7 +39,16 @@ export async function resolveEntityIdFromToken(
       return { ok: false, reason: "expired" };
     }
 
-    return { ok: true, entityId: row.entityId };
+    const rawEmail = row.manufacturerEmail?.trim();
+    if (!rawEmail) {
+      return { ok: false, reason: "manufacturer_email_missing" };
+    }
+
+    return {
+      ok: true,
+      entityId: row.entityId,
+      manufacturerEmail: normalizeManufacturerEmail(rawEmail),
+    };
   } catch (e) {
     console.error("[tracking] resolveEntityIdFromToken", e);
     return { ok: false, reason: "db_unavailable" };

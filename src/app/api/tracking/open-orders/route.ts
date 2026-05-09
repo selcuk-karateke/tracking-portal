@@ -6,6 +6,8 @@ import {
   type OpenOrdersFulfillmentFilter,
   type ShopifyErrorCode,
 } from "@/lib/shopify-fulfillment";
+import { isOrderIdAllowedForSupplier } from "@/lib/shopify-order-id-match";
+import { getAllowedShopifyOrderIdsForSupplier } from "@/lib/supplier-order-allowlist";
 
 type ApiError = {
   ok: false;
@@ -101,6 +103,12 @@ export async function GET(request: NextRequest) {
       not_found: { status: 401, code: "token_invalid", message: "Link ungültig oder unbekannt." },
       revoked: { status: 403, code: "token_revoked", message: "Link wurde widerrufen." },
       expired: { status: 403, code: "token_expired", message: "Link ist abgelaufen." },
+      manufacturer_email_missing: {
+        status: 403,
+        code: "link_legacy_no_manufacturer_email",
+        message:
+          "Dieser Einladungs-Link ist veraltet (ohne Hersteller-Zuordnung). Bitte einen neuen Link in der Shopverwaltung anfordern.",
+      },
       not_configured: {
         status: 503,
         code: "database_not_configured",
@@ -157,10 +165,21 @@ export async function GET(request: NextRequest) {
     return errorResponse(mapped.status, result.code, mapped.message);
   }
 
+  const allowedIds = await getAllowedShopifyOrderIdsForSupplier(
+    resolved.entityId,
+    resolved.manufacturerEmail,
+  );
+  const orders = result.orders.filter((o) =>
+    isOrderIdAllowedForSupplier(
+      { id: o.orderId, legacyResourceId: o.legacyResourceId },
+      allowedIds,
+    ),
+  );
+
   return NextResponse.json({
     ok: true,
     entityId: resolved.entityId,
-    orders: result.orders,
+    orders,
     pageInfo: result.pageInfo,
   });
 }
