@@ -124,6 +124,8 @@ export async function createFulfillmentForOrder(params: {
       ok: false;
       code: ShopifyErrorCode;
       partialDetail?: PartialFulfillmentErrorDetail;
+      /** GraphQL `fulfillmentCreate.userErrors` – für Lieferanten lesbar durchreichen */
+      shopifyUserErrors?: string[];
     }
 > {
   const normalizedShop = normalizeShopDomain(params.shop);
@@ -206,8 +208,15 @@ export async function createFulfillmentForOrder(params: {
   }
 
   const userErrors = mutation.data.fulfillmentCreate.userErrors;
+  const shopifyUserErrors = userErrors
+    .map((e) => e.message?.trim())
+    .filter((m): m is string => !!m && m.length > 0);
   if (userErrors.length > 0 || !mutation.data.fulfillmentCreate.fulfillment) {
-    return { ok: false, code: "shopify_rejected" };
+    return {
+      ok: false,
+      code: "shopify_rejected",
+      ...(shopifyUserErrors.length > 0 ? { shopifyUserErrors } : {}),
+    };
   }
 
   return {
