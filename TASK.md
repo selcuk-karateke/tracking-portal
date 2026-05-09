@@ -2,13 +2,13 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-06 (Schema/Migration bereinigt)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-09 (UX „Tracking melden“)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png` |
-| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; Design-Parität; Hersteller-Isolation (Open-Orders + Fulfillment nur bei freigegebener Bestellung). Falsche Portal-DDL-Migration entfernt; No-op-Migration: DDL nur über Manage. |
+| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; Design-Parität; Hersteller-Isolation; Formular-UX: Pflichtfelder **über** der Tabelle, **„Tracking melden“** rechts **neben** den Feldern (Desktop), Client-Plausibilität vor Submit. DDL nur über Manage. |
 | Offen / nächster Schritt | Smoke E2E nach Deploy; optional Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
@@ -37,6 +37,22 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-05-09 — „Tracking melden“: Button oben rechts + Formular über Tabelle (P1)
+
+- **Priorität:** P1 (UX)
+- **Kontext (Screenshot Betreiber):** Auf der Seite mit **offenen Bestellungen** sitzt der Primärbutton **„Tracking melden“** unten links und wirkt versteckt; die Eingaben (**Bestellreferenz**, **Sendungsnummer / Tracking**, **Versanddienst**) stehen **unter** der Tabelle — schwer zu finden.
+- **Auftrag:**
+  1. **Button „Tracking melden“:** prominent **rechts oben** im Formular-/Seitenkopf (nicht unten links). Button **erst sinnvoll aktivieren bzw. klar hervorheben**, wenn die **Sendungsnummer / Tracking** ausgefüllt ist — und konsistent mit den übrigen **Pflichtfeldern** fürs Absenden (Bestellreferenz, Versanddienst). **Vor dem Submit:** wo möglich **clientseitig** prüfen (z. B. nicht leer, minimale Länge, erlaubte Zeichen); **kein** Ersatz für die bestehende API-/Server-Validierung.
+  2. **Layout:** Die genannten **Eingabefelder über die Tabelle** „Offene Bestellungen“ ziehen — Reihenfolge: Hinweistext → **Eingaben** → Tabelle → ggf. Fußnoten („Zeile anklicken …“).
+- **Done wenn:** Smoke auf `/l/[token]`: Felder oben, Button rechts oben, leere Sendungsnummer → kein wirrer Klick auf aktiven Submit; mit gültiger Eingabe → wie bisher erfolgreicher Flow; `pnpm run lint` / `validate` grün; **Stand**-Block oben + eine Zeile im Manage-Log `docs/TRACKING_PORTAL_INTEGRATION.md` (wenn `project-shop` erreichbar).
+- **Status:** 🟢 erledigt
+- **Review Manage-Kopf (2026-05-09) — was an der Erstumsetzung falsch wirkte:**
+  - Der Button **„Tracking melden“** stand **zwischen** dem blauen Hinweis-Banner und den **drei Eingabefeldern** — optisch wie „zuerst absenden, dann ausfüllen“, obwohl der Button zu Recht per `canSubmit` deaktiviert war, bis Bestellnummer, Sendungsnummer (mind. 3 Zeichen) und Versanddienst passen.
+  - Die Felder lagen bereits **über** der Tabelle „Offene Bestellungen“ — das entsprach dem Auftrag; nur die **Button-Position** war irreführend.
+- **Korrektur (umgesetzt in `src/app/tracking-form.tsx`):** Eine Zeile **`sm:flex-row`**: **links** die drei Pflichtfelder (gestapelt), **rechts** der Primärbutton inkl. Kurzhinweis wenn noch nicht absendbar; **darunter** der Block mit Tabelle. Auf schmalen Viewports: Button unter den Feldern, volle Breite (`w-full sm:w-auto`).
+- **Technik unverändert:** `canSubmit` = `clientFieldMessage === null` (Bestellnr. + Regex, Sendung ≥3 Zeichen + Regex) **und** `carrierOk` **und** nicht `submitting`; API-Validierung bleibt maßgeblich.
+- **Notiz Agent 2:** Nach Deploy kurz smoke-testen; `pnpm run lint` war nach Änderung grün.
 
 ### 2026-05-06 — Hersteller-Isolation (SupplierTrackingLink ↔ Portal) (P0)
 

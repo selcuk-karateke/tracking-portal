@@ -37,8 +37,9 @@ export default async function TrackingLinkPage({ params }: PageProps) {
           </h2>
           <ul className="mt-3 list-inside list-disc space-y-2 text-sm text-gray-600">
             <li>
-              Wählen Sie bei Bedarf eine offene Bestellung aus der Liste oder
-              geben Sie die Bestellnummer manuell ein.
+              Tragen Sie oben Bestellnummer, Sendungsnummer und Versanddienst ein
+              — oder wählen Sie eine Zeile in der Tabelle „Offene Bestellungen“,
+              um die Bestellnummer zu übernehmen.
             </li>
             <li>
               Dieses Formular ist Teil der{" "}

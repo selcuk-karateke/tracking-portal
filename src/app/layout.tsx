@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   },
   description:
     "Sendungsdaten zu Bestellungen übermitteln – Lieferanten-Tracking der Kawai Labs Shopverwaltung.",
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
