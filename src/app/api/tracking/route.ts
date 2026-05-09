@@ -6,6 +6,7 @@ import {
   findOrderForReference,
   mapCarrierForShopify,
   type Carrier,
+  type PartialFulfillmentErrorDetail,
   type ShopifyErrorCode,
 } from "@/lib/shopify-fulfillment";
 import {
@@ -30,6 +31,7 @@ type ApiError = {
   error: {
     code: string;
     message: string;
+    details?: Record<string, unknown>;
   };
 };
 
@@ -37,14 +39,56 @@ function errorResponse(
   status: number,
   code: string,
   message: string,
+  details?: Record<string, unknown>,
 ): NextResponse<ApiError> {
   return NextResponse.json(
     {
       ok: false,
-      error: { code, message },
+      error: {
+        code,
+        message,
+        ...(details && Object.keys(details).length > 0 ? { details } : {}),
+      },
     },
     { status },
   );
+}
+
+function formatVariantQtyList(byVariantId: Record<string, number>): string {
+  return Object.entries(byVariantId)
+    .filter(([, q]) => q > 0)
+    .map(([id, q]) => `${q}× Produktvariante (Shopify-ID ${id})`)
+    .join(", ");
+}
+
+function messageForPartialFulfillmentFailure(
+  detail: PartialFulfillmentErrorDetail | undefined,
+  code: ShopifyErrorCode,
+): { message: string; details?: Record<string, unknown> } {
+  if (detail?.kind === "quantity_mismatch") {
+    const list = formatVariantQtyList(detail.stillExpectedByVariantId);
+    return {
+      message: `Abgleich Shopify ↔ Shopverwaltung (Streckenlieferung): Für diese Bestellung ist bei Shopify für die folgenden Positionen nicht genug offene Versand-Menge vorhanden, obwohl die Shopverwaltung noch einen Versand erwartet: ${list}. Häufige Ursachen: Teillieferung oder komplette Lieferung ist in Shopify schon erfasst, Retoure, Teilstornierung oder die Bestellung wurde nachträglich geändert. Bitte den Betreiber der Shopverwaltung bitten, Bestellung und Dropshipping-Daten zu prüfen.`,
+      details: { partialFulfillment: detail },
+    };
+  }
+  if (detail?.kind === "no_matching_lines") {
+    const list = formatVariantQtyList(detail.expectedByVariantId);
+    return {
+      message: `Abgleich Shopify ↔ Shopverwaltung (Streckenlieferung): Die Shopverwaltung erwartet einen Versand für: ${list}. In Shopify gibt es dafür keine offene Fulfillment-Zeile mit genau diesen Produktvarianten. Häufige Ursachen: falsche oder veraltete Varianten-ID in der Verwaltung, die Bestellung enthält andere Varianten, oder die Position ist in Shopify schon erfüllt/storniert. Bitte den Betreiber der Shopverwaltung bitten, Bestellung und gespeicherte Varianten-IDs zu prüfen.`,
+      details: { partialFulfillment: detail },
+    };
+  }
+  if (code === "partial_fulfillment_quantity_mismatch") {
+    return {
+      message:
+        "Abgleich Shopify ↔ Shopverwaltung: Die zu erfüllenden Mengen passen nicht (Details fehlen in der Antwort — bitte erneut versuchen oder Betreiber informieren).",
+    };
+  }
+  return {
+    message:
+      "Abgleich Shopify ↔ Shopverwaltung: Keine passenden Fulfillment-Positionen (Details fehlen in der Antwort — bitte erneut versuchen oder Betreiber informieren).",
+  };
 }
 
 function responseForResolveFailure(reason: ResolveFailureReason): {
@@ -122,9 +166,13 @@ function responseForCredentialFailure(reason: ShopifyCredentialReason): {
   }
 }
 
-function responseForShopifyFailure(code: ShopifyErrorCode): {
+function responseForShopifyFailure(
+  code: ShopifyErrorCode,
+  partialDetail?: PartialFulfillmentErrorDetail,
+): {
   status: number;
   message: string;
+  details?: Record<string, unknown>;
 } {
   switch (code) {
     case "order_reference_ambiguous":
@@ -143,18 +191,22 @@ function responseForShopifyFailure(code: ShopifyErrorCode): {
         status: 404,
         message: "Keine offene Fulfillment Order für diese Bestellung gefunden.",
       };
-    case "partial_fulfillment_no_matching_lines":
+    case "partial_fulfillment_no_matching_lines": {
+      const r = messageForPartialFulfillmentFailure(partialDetail, code);
       return {
         status: 400,
-        message:
-          "Keine passenden Bestellpositionen für Ihre Lieferung gefunden. Bitte Betreiber kontaktieren (Varianten-Daten).",
+        message: r.message,
+        ...(r.details ? { details: r.details } : {}),
       };
-    case "partial_fulfillment_quantity_mismatch":
+    }
+    case "partial_fulfillment_quantity_mismatch": {
+      const r = messageForPartialFulfillmentFailure(partialDetail, code);
       return {
         status: 400,
-        message:
-          "Mengen passen nicht zu Ihrer Streckenlieferung in der Shopverwaltung. Bitte Betreiber prüfen.",
+        message: r.message,
+        ...(r.details ? { details: r.details } : {}),
       };
+    }
     case "shop_domain_invalid":
       return {
         status: 400,
@@ -286,8 +338,16 @@ export async function POST(request: NextRequest) {
       variantQuantities.size > 0 ? variantQuantities : null,
   });
   if (!fulfillmentResult.ok) {
-    const failure = responseForShopifyFailure(fulfillmentResult.code);
-    return errorResponse(failure.status, fulfillmentResult.code, failure.message);
+    const failure = responseForShopifyFailure(
+      fulfillmentResult.code,
+      fulfillmentResult.partialDetail,
+    );
+    return errorResponse(
+      failure.status,
+      fulfillmentResult.code,
+      failure.message,
+      failure.details,
+    );
   }
 
   const payload = {

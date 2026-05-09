@@ -41,6 +41,19 @@ export type ShopifyErrorCode =
   | "shopify_unavailable"
   | "shopify_rejected";
 
+/** Zusatzinfos für API/UI bei Teil-Fulfillment-Fehlern (Variante = numerische Shopify-Varianten-ID). */
+export type PartialFulfillmentErrorDetail =
+  | {
+      kind: "quantity_mismatch";
+      /** Noch zu erfüllende Stückzahl pro Varianten-ID laut Shopverwaltung, die Shopify nicht abdecken konnte */
+      stillExpectedByVariantId: Record<string, number>;
+    }
+  | {
+      kind: "no_matching_lines";
+      /** Erwartet laut Shopverwaltung (Dropshipping-Dispatch), aber keine passende offene FO-Zeile in Shopify */
+      expectedByVariantId: Record<string, number>;
+    };
+
 export async function findOrderForReference(params: {
   shop: string;
   accessToken: string;
@@ -107,7 +120,11 @@ export async function createFulfillmentForOrder(params: {
   variantQuantities?: Map<string, number> | null;
 }): Promise<
   | { ok: true; fulfillmentId: string }
-  | { ok: false; code: ShopifyErrorCode }
+  | {
+      ok: false;
+      code: ShopifyErrorCode;
+      partialDetail?: PartialFulfillmentErrorDetail;
+    }
 > {
   const normalizedShop = normalizeShopDomain(params.shop);
   if (!normalizedShop.ok) {
@@ -141,7 +158,11 @@ export async function createFulfillmentForOrder(params: {
   if (usePartial) {
     const built = buildPartialFulfillmentPayload(open, params.variantQuantities!);
     if (!built.ok) {
-      return { ok: false, code: built.code };
+      return {
+        ok: false,
+        code: built.code,
+        partialDetail: built.detail,
+      };
     }
     lineItemsByFulfillmentOrder = built.value;
   } else {
@@ -223,7 +244,11 @@ function buildPartialFulfillmentPayload(
         fulfillmentOrderLineItems: Array<{ id: string; quantity: number }>;
       }>;
     }
-  | { ok: false; code: ShopifyErrorCode } {
+  | {
+      ok: false;
+      code: ShopifyErrorCode;
+      detail: PartialFulfillmentErrorDetail;
+    } {
   const remaining = new Map(needIn);
   const result: Array<{
     fulfillmentOrderId: string;
@@ -251,14 +276,27 @@ function buildPartialFulfillmentPayload(
     }
   }
 
-  for (const [, v] of remaining) {
-    if (v > 0) {
-      return { ok: false, code: "partial_fulfillment_quantity_mismatch" };
-    }
+  const stillExpected: Record<string, number> = {};
+  for (const [vid, v] of remaining) {
+    if (v > 0) stillExpected[vid] = v;
+  }
+  if (Object.keys(stillExpected).length > 0) {
+    return {
+      ok: false,
+      code: "partial_fulfillment_quantity_mismatch",
+      detail: { kind: "quantity_mismatch", stillExpectedByVariantId: stillExpected },
+    };
   }
 
   if (result.length === 0) {
-    return { ok: false, code: "partial_fulfillment_no_matching_lines" };
+    return {
+      ok: false,
+      code: "partial_fulfillment_no_matching_lines",
+      detail: {
+        kind: "no_matching_lines",
+        expectedByVariantId: Object.fromEntries(needIn),
+      },
+    };
   }
 
   return { ok: true, value: result };
