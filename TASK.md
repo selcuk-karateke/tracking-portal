@@ -2,13 +2,13 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-09 (UX „Tracking melden“)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-09 (Teil-Fulfillment + UX)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png` |
-| Was ist umgesetzt & getestet | Phase 1–3 inkl. Fulfillment; Design-Parität; Hersteller-Isolation; Formular-UX: Pflichtfelder **über** der Tabelle, **„Tracking melden“** rechts **neben** den Feldern (Desktop), Client-Plausibilität vor Submit. DDL nur über Manage. |
+| Was ist umgesetzt & getestet | Phase 1–3; **Teil-Fulfillment** nach `shopifyVariantId` aus Manage-Dispatches (Mischbestellungen); Allowlist nur **SUCCESS**; Formular-UX wie Karte 2026-05-09. Prisma-Felder an Manage: `shopifyVariantId`, `emailProviderMessageId` auf `dropshipping_dispatches`. DDL nur über Manage. |
 | Offen / nächster Schritt | Smoke E2E nach Deploy; optional Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
@@ -37,6 +37,20 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-05-09 — Mischbestellungen: nur Lieferanten-Positionen fulfillen (Backend erledigt, UI optional)
+
+- **Priorität:** P0 (fachlich)
+- **Problem:** Tracking-Link ist pro **Hersteller-E-Mail** (`SupplierTrackingLink`). Offene Bestellungen und Submit waren auf **Bestellungsebene** erlaubt; Shopify-Fulfillment hat aber **alle** offenen Fulfillment-Positionen der Bestellung geschlossen — bei mehreren Herstellern in einer Order wurde fälschlich alles auf einen Tracking-Eintrag gebucht.
+- **Manage (`project-shop`, erledigt):** `DropshippingDispatch.shopifyVariantId` (Webhook `variant_id`), Migration `20260509180000_*`; jede Dispatch-Zeile speichert die Variante.
+- **Portal (erledigt):**
+  - Allowlist `getAllowedShopifyOrderIdsForSupplier` nur noch **`SUCCESS`**-Dispatches (keine „nur übersprungen“-Orders mit gleicher E-Mail).
+  - `getVariantQuantitiesForSupplierOrder` → Summe pro Variante aus **SUCCESS** + gesetzter `shopifyVariantId` für diese Entität + Hersteller + Order-ID.
+  - `createFulfillmentForOrder`: wenn Map nicht leer → **`fulfillmentCreate` nur mit passenden `FulfillmentOrderLineItem`s** und Mengen; sonst Legacy (volle FO) für alte Daten ohne `shopifyVariantId`.
+  - Fehlercodes: `partial_fulfillment_no_matching_lines`, `partial_fulfillment_quantity_mismatch` mit deutscher Message.
+- **Optional / Nice-to-have (Agent 2):** UI-Text im Formular: kurz erklären, dass nur **Ihre** Artikelpositionen erfüllt werden; optional Tabelle um **Ihre** Varianten/SKUs aus einem kleinen API-Hint zu erweitern (nicht blockierend).
+- **Status:** 🟢 Backend erledigt (Kopf 2026-05-09)
+- **Notiz Agent 2:** Prisma-Schema `shopifyVariantId` / `emailProviderMessageId` an Manage anbinden; nach Deploy **`prisma generate`**; gemeinsame DB: Migration nur aus **Manage** ausführen.
 
 ### 2026-05-09 — „Tracking melden“: Button oben rechts + Formular über Tabelle (P1)
 

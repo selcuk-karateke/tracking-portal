@@ -1,3 +1,4 @@
+import { DropshippingDispatchStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { normalizeManufacturerEmail } from "./normalize-manufacturer-email";
 
@@ -13,6 +14,7 @@ export async function getAllowedShopifyOrderIdsForSupplier(
 
   const rows = await prisma.dropshippingDispatch.findMany({
     where: {
+      status: DropshippingDispatchStatus.SUCCESS,
       run: {
         entityId,
       },

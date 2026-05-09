@@ -71,12 +71,14 @@ model DropshippingDispatch {
   id                String                     @id @default(uuid())
   runId             String
   manufacturerEmail String
+  shopifyVariantId  String?
   productTitle      String
   variantTitle      String?
   quantity          Int
   status            DropshippingDispatchStatus @default(PENDING)
   pdfFileName       String?
   emailSentAt       DateTime?
+  emailProviderMessageId String?
   errorMessage      String?
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt

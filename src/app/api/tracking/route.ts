@@ -12,8 +12,12 @@ import {
   loadShopifyCredentials,
   type ShopifyCredentialReason,
 } from "@/lib/shopify-credentials";
-import { isOrderIdAllowedForSupplier } from "@/lib/shopify-order-id-match";
+import {
+  canonicalNumericShopifyOrderId,
+  isOrderIdAllowedForSupplier,
+} from "@/lib/shopify-order-id-match";
 import { getAllowedShopifyOrderIdsForSupplier } from "@/lib/supplier-order-allowlist";
+import { getVariantQuantitiesForSupplierOrder } from "@/lib/supplier-dispatch-variants";
 
 const CARRIERS = ["DHL", "DPD", "UPS", "Sonstiges"] as const;
 
@@ -139,6 +143,18 @@ function responseForShopifyFailure(code: ShopifyErrorCode): {
         status: 404,
         message: "Keine offene Fulfillment Order für diese Bestellung gefunden.",
       };
+    case "partial_fulfillment_no_matching_lines":
+      return {
+        status: 400,
+        message:
+          "Keine passenden Bestellpositionen für Ihre Lieferung gefunden. Bitte Betreiber kontaktieren (Varianten-Daten).",
+      };
+    case "partial_fulfillment_quantity_mismatch":
+      return {
+        status: 400,
+        message:
+          "Mengen passen nicht zu Ihrer Streckenlieferung in der Shopverwaltung. Bitte Betreiber prüfen.",
+      };
     case "shop_domain_invalid":
       return {
         status: 400,
@@ -253,12 +269,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const orderNumeric = canonicalNumericShopifyOrderId(orderResult.order);
+  const variantQuantities = await getVariantQuantitiesForSupplierOrder(
+    resolved.entityId,
+    resolved.manufacturerEmail,
+    orderNumeric,
+  );
+
   const fulfillmentResult = await createFulfillmentForOrder({
     shop: credentials.shop,
     accessToken: credentials.accessToken,
     orderId: orderResult.order.id,
     trackingNumber: trackingNumber.trim(),
     trackingCompany: mapCarrierForShopify(carrier),
+    variantQuantities:
+      variantQuantities.size > 0 ? variantQuantities : null,
   });
   if (!fulfillmentResult.ok) {
     const failure = responseForShopifyFailure(fulfillmentResult.code);

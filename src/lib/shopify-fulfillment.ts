@@ -33,6 +33,8 @@ export type ShopifyErrorCode =
   | "order_not_found"
   | "order_reference_ambiguous"
   | "fulfillment_order_not_found"
+  | "partial_fulfillment_no_matching_lines"
+  | "partial_fulfillment_quantity_mismatch"
   | "shop_domain_invalid"
   | "shop_domain_not_resolvable"
   | "shopify_unreachable"
@@ -101,6 +103,8 @@ export async function createFulfillmentForOrder(params: {
   orderId: string;
   trackingNumber: string;
   trackingCompany?: string;
+  /** Numerische Variant-IDs → Stückzahl (aus Manage `DropshippingDispatch`). Leer = alle offenen Positionen (Legacy). */
+  variantQuantities?: Map<string, number> | null;
 }): Promise<
   | { ok: true; fulfillmentId: string }
   | { ok: false; code: ShopifyErrorCode }
@@ -126,9 +130,25 @@ export async function createFulfillmentForOrder(params: {
     return { ok: false, code: "fulfillment_order_not_found" };
   }
 
-  const lineItemsByFulfillmentOrder = open.map((fo) => ({
-    fulfillmentOrderId: fo.id,
-  }));
+  const usePartial =
+    params.variantQuantities != null && params.variantQuantities.size > 0;
+
+  let lineItemsByFulfillmentOrder: Array<{
+    fulfillmentOrderId: string;
+    fulfillmentOrderLineItems?: Array<{ id: string; quantity: number }>;
+  }>;
+
+  if (usePartial) {
+    const built = buildPartialFulfillmentPayload(open, params.variantQuantities!);
+    if (!built.ok) {
+      return { ok: false, code: built.code };
+    }
+    lineItemsByFulfillmentOrder = built.value;
+  } else {
+    lineItemsByFulfillmentOrder = open.map((fo) => ({
+      fulfillmentOrderId: fo.id,
+    }));
+  }
 
   const mutation = await graphqlRequest<{
     fulfillmentCreate: {
@@ -173,6 +193,75 @@ export async function createFulfillmentForOrder(params: {
     ok: true,
     fulfillmentId: mutation.data.fulfillmentCreate.fulfillment.id,
   };
+}
+
+type FulfillmentOrderOpenNode = {
+  id: string;
+  lineItems: {
+    nodes: Array<{
+      id: string;
+      remainingQuantity: number;
+      lineItem: { variant: { id: string } | null } | null;
+    }>;
+  };
+};
+
+function variantGidToNumeric(gid: string | null | undefined): string | null {
+  if (!gid || typeof gid !== "string") return null;
+  const m = /^gid:\/\/shopify\/ProductVariant\/(\d+)$/i.exec(gid.trim());
+  return m ? m[1] : null;
+}
+
+function buildPartialFulfillmentPayload(
+  openFos: FulfillmentOrderOpenNode[],
+  needIn: Map<string, number>,
+):
+  | {
+      ok: true;
+      value: Array<{
+        fulfillmentOrderId: string;
+        fulfillmentOrderLineItems: Array<{ id: string; quantity: number }>;
+      }>;
+    }
+  | { ok: false; code: ShopifyErrorCode } {
+  const remaining = new Map(needIn);
+  const result: Array<{
+    fulfillmentOrderId: string;
+    fulfillmentOrderLineItems: Array<{ id: string; quantity: number }>;
+  }> = [];
+
+  for (const fo of openFos) {
+    const items: Array<{ id: string; quantity: number }> = [];
+    for (const node of fo.lineItems.nodes) {
+      if (node.remainingQuantity <= 0) continue;
+      const vid = variantGidToNumeric(node.lineItem?.variant?.id ?? undefined);
+      if (!vid) continue;
+      const needQty = remaining.get(vid);
+      if (needQty === undefined || needQty <= 0) continue;
+      const q = Math.min(node.remainingQuantity, needQty);
+      if (q <= 0) continue;
+      items.push({ id: node.id, quantity: q });
+      remaining.set(vid, needQty - q);
+    }
+    if (items.length > 0) {
+      result.push({
+        fulfillmentOrderId: fo.id,
+        fulfillmentOrderLineItems: items,
+      });
+    }
+  }
+
+  for (const [, v] of remaining) {
+    if (v > 0) {
+      return { ok: false, code: "partial_fulfillment_quantity_mismatch" };
+    }
+  }
+
+  if (result.length === 0) {
+    return { ok: false, code: "partial_fulfillment_no_matching_lines" };
+  }
+
+  return { ok: true, value: result };
 }
 
 export type OpenOrdersFulfillmentFilter = "open" | "unfulfilled" | "partial";
@@ -366,20 +455,19 @@ async function queryFulfillmentOrders(params: {
   shop: string;
   accessToken: string;
   orderId: string;
-}): Promise<
-  GraphqlResult<
-    Array<{
-      id: string;
-      lineItems: { nodes: Array<{ remainingQuantity: number }> };
-    }>
-  >
-> {
+}): Promise<GraphqlResult<FulfillmentOrderOpenNode[]>> {
   const result = await graphqlRequest<{
     order: {
       fulfillmentOrders: {
         nodes: Array<{
           id: string;
-          lineItems: { nodes: Array<{ remainingQuantity: number }> };
+          lineItems: {
+            nodes: Array<{
+              id: string;
+              remainingQuantity: number;
+              lineItem: { variant: { id: string } | null } | null;
+            }>;
+          };
         }>;
       };
     } | null;
@@ -393,7 +481,13 @@ async function queryFulfillmentOrders(params: {
             id
             lineItems(first: 100) {
               nodes {
+                id
                 remainingQuantity
+                lineItem {
+                  variant {
+                    id
+                  }
+                }
               }
             }
           }
