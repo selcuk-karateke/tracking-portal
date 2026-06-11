@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const localPath = findLocalLogoPath(resolved.entityId);
   if (localPath) {
     const buf = await fs.readFile(localPath);
-    return new NextResponse(buf, {
+    return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": getLocalLogoContentType(localPath),
         "Cache-Control": "private, max-age=3600",
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   const remote = await fetchRemoteEntityLogo(resolved.entityId, token);
   if (remote) {
-    return new NextResponse(remote.buffer, {
+    return new NextResponse(new Uint8Array(remote.buffer), {
       headers: {
         "Content-Type": remote.contentType,
         "Cache-Control": "private, max-age=3600",
