@@ -19,6 +19,77 @@ export async function resolveShopBrandingForEntity(
   };
 }
 
+export type BrandLogoBytes = {
+  buffer: Buffer;
+  contentType: string;
+};
+
+/** Shopify Shop-Brand-Logo (Fallback wenn kein Manage-Upload erreichbar). */
+export async function fetchShopifyBrandLogo(
+  entityId: string,
+): Promise<BrandLogoBytes | null> {
+  const credentials = await loadShopifyCredentials(entityId);
+  if (!credentials.ok) return null;
+
+  const shop = normalizeShopHost(credentials.shop);
+  if (!shop) return null;
+
+  try {
+    const res = await fetch(
+      `https://${shop}/admin/api/${API_VERSION}/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": credentials.accessToken,
+        },
+        body: JSON.stringify({
+          query: `query {
+            shop {
+              brand {
+                logo { image { url } }
+                squareLogo { image { url } }
+              }
+            }
+          }`,
+        }),
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+
+    const payload = (await res.json()) as {
+      data?: {
+        shop?: {
+          brand?: {
+            logo?: { image?: { url?: string } };
+            squareLogo?: { image?: { url?: string } };
+          };
+        };
+      };
+    };
+
+    const brand = payload.data?.shop?.brand;
+    const imageUrl =
+      brand?.logo?.image?.url?.trim() ||
+      brand?.squareLogo?.image?.url?.trim() ||
+      null;
+    if (!imageUrl) return null;
+
+    const imgRes = await fetch(imageUrl, { cache: "no-store" });
+    if (!imgRes.ok) return null;
+    const contentType = imgRes.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) return null;
+
+    return {
+      buffer: Buffer.from(await imgRes.arrayBuffer()),
+      contentType,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchShopName(entityId: string): Promise<string> {
   const credentials = await loadShopifyCredentials(entityId);
   if (!credentials.ok) {

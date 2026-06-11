@@ -6,6 +6,16 @@ import {
   findLocalLogoPath,
   getLocalLogoContentType,
 } from "@/lib/entity-logo";
+import { fetchShopifyBrandLogo } from "@/lib/shop-branding";
+
+function logoResponse(buffer: Buffer, contentType: string): NextResponse {
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
+}
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token")?.trim() ?? "";
@@ -21,22 +31,17 @@ export async function GET(request: NextRequest) {
   const localPath = findLocalLogoPath(resolved.entityId);
   if (localPath) {
     const buf = await fs.readFile(localPath);
-    return new NextResponse(new Uint8Array(buf), {
-      headers: {
-        "Content-Type": getLocalLogoContentType(localPath),
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
+    return logoResponse(buf, getLocalLogoContentType(localPath));
   }
 
   const remote = await fetchRemoteEntityLogo(resolved.entityId, token);
   if (remote) {
-    return new NextResponse(new Uint8Array(remote.buffer), {
-      headers: {
-        "Content-Type": remote.contentType,
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
+    return logoResponse(remote.buffer, remote.contentType);
+  }
+
+  const shopify = await fetchShopifyBrandLogo(resolved.entityId);
+  if (shopify) {
+    return logoResponse(shopify.buffer, shopify.contentType);
   }
 
   return new NextResponse(null, { status: 404 });
