@@ -1,15 +1,11 @@
 import { prisma } from "./prisma";
+import {
+  entityHasUploadedLogoFile,
+  findRemoteManageLogoUrl,
+} from "./entity-logo";
 import { loadShopifyCredentials } from "./shopify-credentials";
 
 const API_VERSION = process.env.SHOPIFY_API_VERSION?.trim() || "2026-01";
-
-/** Wie in Manage `entity_credentials` — erste gefundene URL gewinnt. */
-const LOGO_CREDENTIAL_KEYS = [
-  "shop_logo_url",
-  "logo_url",
-  "shop_logo",
-  "branding_logo_url",
-] as const;
 
 const SHOP_NAME_CREDENTIAL_KEYS = ["shop_name", "shopify_shop_name"] as const;
 
@@ -20,58 +16,50 @@ export type ShopBranding = {
 
 export async function resolveShopBrandingForEntity(
   entityId: string,
+  token: string,
 ): Promise<ShopBranding> {
-  const [credLogo, credName] = await Promise.all([
-    loadLogoUrlFromCredentials(entityId),
-    loadShopNameFromCredentials(entityId),
-  ]);
+  const credName = await loadShopNameFromCredentials(entityId);
 
   const credentials = await loadShopifyCredentials(entityId);
-  if (!credentials.ok) {
-    return {
-      shopName: credName ?? "Shop",
-      logoUrl: credLogo,
-    };
-  }
-
-  const fromShopify = await fetchShopifyShopBrand(
-    credentials.shop,
-    credentials.accessToken,
-  );
+  const fromShopify =
+    credentials.ok
+      ? await fetchShopifyShopBrand(
+          credentials.shop,
+          credentials.accessToken,
+        )
+      : null;
 
   const shopName =
     fromShopify?.name ??
     credName ??
-    humanizeShopDomain(credentials.shop);
+    (credentials.ok ? humanizeShopDomain(credentials.shop) : "Shop");
 
-  const logoUrl = credLogo ?? fromShopify?.logoUrl ?? null;
+  const logoUrl = await resolveLogoUrl(entityId, token, fromShopify?.logoUrl);
 
   return { shopName, logoUrl };
 }
 
-async function loadLogoUrlFromCredentials(
+async function resolveLogoUrl(
   entityId: string,
+  token: string,
+  shopifyLogoUrl: string | null | undefined,
 ): Promise<string | null> {
-  try {
-    const rows = await prisma.entityCredential.findMany({
-      where: {
-        entityId,
-        key: { in: [...LOGO_CREDENTIAL_KEYS] },
-      },
-      select: { key: true, value: true },
-    });
-    const byKey = new Map(rows.map((r) => [r.key, r.value.trim()]));
-    for (const key of LOGO_CREDENTIAL_KEYS) {
-      const raw = byKey.get(key);
-      if (raw && isUsableLogoUrl(raw)) {
-        return raw;
-      }
-    }
-    return null;
-  } catch (e) {
-    console.error("[tracking] loadLogoUrlFromCredentials", e);
-    return null;
+  const proxyUrl = `/api/tracking/entity-logo?token=${encodeURIComponent(token)}`;
+
+  if (entityHasUploadedLogoFile(entityId)) {
+    return proxyUrl;
   }
+
+  const remoteManage = await findRemoteManageLogoUrl(entityId);
+  if (remoteManage) {
+    return proxyUrl;
+  }
+
+  if (shopifyLogoUrl) {
+    return shopifyLogoUrl;
+  }
+
+  return null;
 }
 
 async function loadShopNameFromCredentials(
@@ -94,18 +82,6 @@ async function loadShopNameFromCredentials(
   } catch {
     return null;
   }
-}
-
-function isUsableLogoUrl(value: string): boolean {
-  if (value.startsWith("https://") || value.startsWith("http://")) {
-    try {
-      const u = new URL(value);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
-  }
-  return false;
 }
 
 function humanizeShopDomain(shop: string): string {
@@ -135,15 +111,16 @@ async function fetchShopifyShopBrand(
             name
             brand {
               logo {
-                image {
-                  url
-                }
+                image { url }
+              }
+              squareLogo {
+                image { url }
               }
             }
           }
         }`,
       }),
-      next: { revalidate: 300 },
+      cache: "no-store",
     });
   } catch (e) {
     console.error("[tracking] fetchShopifyShopBrand", e);
@@ -160,30 +137,36 @@ async function fetchShopifyShopBrand(
   }
 
   if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: { shop?: unknown } }).data?.shop;
-  if (!data || typeof data !== "object") return null;
+  const shopNode = (payload as { data?: { shop?: unknown } }).data?.shop;
+  if (!shopNode || typeof shopNode !== "object") return null;
 
   const name =
-    "name" in data && typeof (data as { name: unknown }).name === "string"
-      ? (data as { name: string }).name
+    "name" in shopNode && typeof (shopNode as { name: unknown }).name === "string"
+      ? (shopNode as { name: string }).name.trim()
       : "";
 
-  let logoUrl: string | null = null;
-  const brand = (data as { brand?: unknown }).brand;
-  if (brand && typeof brand === "object") {
-    const logo = (brand as { logo?: unknown }).logo;
-    if (logo && typeof logo === "object") {
-      const image = (logo as { image?: unknown }).image;
-      if (image && typeof image === "object") {
-        const u = (image as { url?: unknown }).url;
-        if (typeof u === "string" && u.trim()) {
-          logoUrl = u.trim();
-        }
-      }
-    }
-  }
+  const brand = (shopNode as { brand?: unknown }).brand;
+  const logoUrl =
+    extractBrandImageUrl(brand, "logo") ??
+    extractBrandImageUrl(brand, "squareLogo");
 
-  return { name: name.trim() || humanizeShopDomain(normalized), logoUrl };
+  return {
+    name: name || humanizeShopDomain(normalized),
+    logoUrl,
+  };
+}
+
+function extractBrandImageUrl(
+  brand: unknown,
+  key: "logo" | "squareLogo",
+): string | null {
+  if (!brand || typeof brand !== "object") return null;
+  const node = (brand as Record<string, unknown>)[key];
+  if (!node || typeof node !== "object") return null;
+  const image = (node as { image?: unknown }).image;
+  if (!image || typeof image !== "object") return null;
+  const u = (image as { url?: unknown }).url;
+  return typeof u === "string" && u.trim() ? u.trim() : null;
 }
 
 function normalizeShopHost(shop: string): string | null {

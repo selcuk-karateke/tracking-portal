@@ -64,7 +64,10 @@ export async function GET(request: NextRequest) {
     return errorResponse(entry.status, entry.code, entry.message);
   }
 
-  const branding = await resolveShopBrandingForEntity(resolved.entityId);
+  const branding = await resolveShopBrandingForEntity(
+    resolved.entityId,
+    token,
+  );
 
   return NextResponse.json({
     ok: true,
