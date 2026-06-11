@@ -48,12 +48,8 @@ function IconHelp({ className }: { className?: string }) {
 const NAV_ACTION_CLASS =
   "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400";
 
-const DEFAULT_LOGO = "/logo.png";
-
-type ShopBrandingState = {
-  shopName: string;
-  logoUrl: string | null;
-};
+const KAWAI_LOGO = "/logo.png";
+const KAWAI_NAME = "Kawai Labs Shopverwaltung";
 
 function extractTokenFromPath(pathname: string | null): string | null {
   if (!pathname) return null;
@@ -66,73 +62,52 @@ function extractTokenFromPath(pathname: string | null): string | null {
   }
 }
 
-function NavLogo({
-  src,
-  onBroken,
-}: {
-  src: string;
-  onBroken: () => void;
-}) {
-  return (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      src={src}
-      alt=""
-      width={120}
-      height={32}
-      className="h-8 w-auto max-w-[140px] shrink-0 object-contain object-left"
-      decoding="async"
-      onError={onBroken}
-    />
-  );
-}
-
 export function PortalNav() {
   const pathname = usePathname();
   const token = useMemo(() => extractTokenFromPath(pathname), [pathname]);
-  const [branding, setBranding] = useState<ShopBrandingState | null>(null);
-  const [logoBroken, setLogoBroken] = useState(false);
+  const [shopName, setShopName] = useState<string | null>(null);
+  const [shopLogoOk, setShopLogoOk] = useState(true);
+
+  const isTokenRoute = Boolean(token);
+  const homeHref =
+    isTokenRoute && token ? `/l/${encodeURIComponent(token)}` : "/";
+
+  const shopLogoSrc =
+    isTokenRoute && token && shopLogoOk
+      ? `/api/tracking/entity-logo?token=${encodeURIComponent(token)}`
+      : null;
+
+  const logoSrc = isTokenRoute ? shopLogoSrc : KAWAI_LOGO;
+  const title = isTokenRoute ? (shopName ?? "Shop") : KAWAI_NAME;
 
   useEffect(() => {
-    let cancelled = false;
-
-    const reset = () => {
-      setBranding(null);
-      setLogoBroken(false);
-    };
-
     if (!token) {
-      queueMicrotask(reset);
+      queueMicrotask(() => {
+        setShopName(null);
+        setShopLogoOk(true);
+      });
       return;
     }
 
-    queueMicrotask(reset);
+    let cancelled = false;
+    queueMicrotask(() => {
+      setShopName(null);
+      setShopLogoOk(true);
+    });
 
     void (async () => {
       try {
         const res = await fetch(
           `/api/tracking/shop-branding?token=${encodeURIComponent(token)}`,
         );
-        const data: unknown = await res.json().catch(() => null);
-        if (cancelled) return;
-
-        if (res.ok && data && typeof data === "object") {
-          const shopName =
-            "shopName" in data && typeof data.shopName === "string"
-              ? data.shopName
-              : null;
-          const logoUrl =
-            "logoUrl" in data &&
-            (data.logoUrl === null || typeof data.logoUrl === "string")
-              ? data.logoUrl
-              : null;
-
-          if (shopName) {
-            setBranding({ shopName, logoUrl });
-          }
+        const data = (await res.json().catch(() => null)) as {
+          shopName?: string;
+        } | null;
+        if (!cancelled && res.ok && data?.shopName) {
+          setShopName(data.shopName);
         }
       } catch {
-        /* Text-Fallback */
+        /* Name-Fallback „Shop“ */
       }
     })();
 
@@ -140,23 +115,6 @@ export function PortalNav() {
       cancelled = true;
     };
   }, [token]);
-
-  const isTokenRoute = Boolean(token);
-  const title =
-    isTokenRoute && branding?.shopName
-      ? branding.shopName
-      : "Lieferanten-Tracking";
-  const homeHref =
-    isTokenRoute && token ? `/l/${encodeURIComponent(token)}` : "/";
-  const ariaLabel =
-    isTokenRoute && branding?.shopName
-      ? `${branding.shopName} — Lieferanten-Tracking`
-      : "Lieferanten-Tracking";
-
-  const shopLogoSrc =
-    isTokenRoute && branding?.logoUrl && !logoBroken ? branding.logoUrl : null;
-  /** Auf `/l/…` nur Shop-Logo; Kawai-Fallback nur auf `/`. */
-  const logoSrc = isTokenRoute ? shopLogoSrc : DEFAULT_LOGO;
 
   return (
     <header className="flex-shrink-0 border-b border-gray-200 bg-white">
@@ -167,22 +125,27 @@ export function PortalNav() {
               <Link
                 href={homeHref}
                 className="flex min-w-0 cursor-pointer items-center gap-2 text-base font-semibold text-gray-900 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 sm:text-lg"
-                aria-label={ariaLabel}
+                aria-label={`${title} — Lieferanten-Tracking`}
               >
                 {logoSrc && (
-                  <NavLogo
-                    key={logoSrc}
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
                     src={logoSrc}
-                    onBroken={() => setLogoBroken(true)}
+                    alt=""
+                    width={120}
+                    height={32}
+                    className="h-8 w-auto max-w-[140px] shrink-0 object-contain object-left"
+                    decoding="async"
+                    onError={() => {
+                      if (isTokenRoute) setShopLogoOk(false);
+                    }}
                   />
                 )}
                 <span className="hidden min-[1025px]:inline truncate">
                   {title}
                 </span>
                 <span className="min-[1025px]:hidden truncate text-sm font-semibold text-gray-900">
-                  {isTokenRoute && branding?.shopName
-                    ? branding.shopName
-                    : "Tracking"}
+                  {isTokenRoute ? (shopName ?? "Shop") : "Tracking"}
                 </span>
               </Link>
             </div>
