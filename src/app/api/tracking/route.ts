@@ -169,6 +169,7 @@ function responseForCredentialFailure(reason: ShopifyCredentialReason): {
 function responseForShopifyFailure(
   code: ShopifyErrorCode,
   partialDetail?: PartialFulfillmentErrorDetail,
+  shopifyUserErrors?: string[],
 ): {
   status: number;
   message: string;
@@ -229,11 +230,22 @@ function responseForShopifyFailure(
         status: 502,
         message: "Shopify API ist aktuell nicht erreichbar.",
       };
-    case "shopify_rejected":
+    case "shopify_rejected": {
+      const msgs =
+        shopifyUserErrors?.filter((m) => typeof m === "string" && m.trim().length > 0) ??
+        [];
+      if (msgs.length > 0) {
+        return {
+          status: 502,
+          message: `Shopify: ${msgs.join(" · ")}`,
+          details: { shopifyUserErrors: msgs },
+        };
+      }
       return {
         status: 502,
         message: "Shopify hat die Anfrage abgelehnt.",
       };
+    }
     case "invalid_input":
       return {
         status: 400,
@@ -341,6 +353,7 @@ export async function POST(request: NextRequest) {
     const failure = responseForShopifyFailure(
       fulfillmentResult.code,
       fulfillmentResult.partialDetail,
+      fulfillmentResult.shopifyUserErrors,
     );
     return errorResponse(
       failure.status,
