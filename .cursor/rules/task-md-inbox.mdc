@@ -1,0 +1,16 @@
+---
+description: TASK.md ist Auftragsquelle — Stand und Inbox pflegen
+alwaysApply: true
+---
+
+# TASK.md (verbindlich)
+
+Quelle: **`TASK.md`** im Repo-Root (nicht Chat-Verlauf).
+
+**Zu Beginn:** Abschnitt **Stand** + **Inbox** lesen; offene Karte (`⚪`) → bei Start `🟡 in Arbeit`.
+
+**Zu Ende:** `pnpm validate`; Karte `🟢 erledigt` oder `🔴 blockiert` + Notiz; **Stand**-Tabelle (Branch, Was existiert, Offen) aktualisieren.
+
+Keine Abnahme-Texte per Messenger — nur Repository.
+
+Grenze: nur `tracking-portal`; Manage-Log in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md` macht der Kopf.

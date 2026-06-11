@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 function IconHome({ className }: { className?: string }) {
   return (
@@ -46,7 +48,88 @@ function IconHelp({ className }: { className?: string }) {
 const NAV_ACTION_CLASS =
   "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400";
 
+type ShopBrandingState = {
+  shopName: string;
+  logoUrl: string | null;
+};
+
+function extractTokenFromPath(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const match = /^\/l\/([^/]+)/.exec(pathname);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 export function PortalNav() {
+  const pathname = usePathname();
+  const token = useMemo(() => extractTokenFromPath(pathname), [pathname]);
+  const [branding, setBranding] = useState<ShopBrandingState | null>(null);
+  const [logoVisible, setLogoVisible] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resetBranding = () => {
+      setBranding(null);
+      setLogoVisible(true);
+    };
+
+    if (!token) {
+      queueMicrotask(resetBranding);
+      return;
+    }
+
+    queueMicrotask(resetBranding);
+
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/tracking/shop-branding?token=${encodeURIComponent(token)}`,
+        );
+        const data: unknown = await res.json().catch(() => null);
+        if (cancelled || !res.ok || !data || typeof data !== "object") {
+          return;
+        }
+        const shopName =
+          "shopName" in data && typeof data.shopName === "string"
+            ? data.shopName
+            : null;
+        if (!shopName) return;
+
+        const logoUrl =
+          "logoUrl" in data &&
+          (data.logoUrl === null || typeof data.logoUrl === "string")
+            ? data.logoUrl
+            : null;
+
+        setBranding({ shopName, logoUrl });
+      } catch {
+        /* Nav bleibt mit Text-Fallback nutzbar */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const isTokenRoute = Boolean(token);
+  const title =
+    isTokenRoute && branding?.shopName
+      ? branding.shopName
+      : "Lieferanten-Tracking";
+  const homeHref = isTokenRoute && token ? `/l/${encodeURIComponent(token)}` : "/";
+  const ariaLabel =
+    isTokenRoute && branding?.shopName
+      ? `${branding.shopName} — Lieferanten-Tracking`
+      : "Lieferanten-Tracking";
+
+  const showLogo = isTokenRoute && branding?.logoUrl && logoVisible;
+
   return (
     <header className="flex-shrink-0 border-b border-gray-200 bg-white">
       <nav aria-label="Hauptnavigation">
@@ -54,35 +137,36 @@ export function PortalNav() {
           <div className="flex flex-col gap-2 py-2 min-[425px]:min-h-14 min-[425px]:flex-row min-[425px]:items-center min-[425px]:justify-between min-[425px]:gap-3 min-[425px]:py-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Link
-                href="/"
+                href={homeHref}
                 className="flex min-w-0 cursor-pointer items-center gap-2 text-base font-semibold text-gray-900 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 sm:text-lg"
-                aria-label="Kawai Labs Shopverwaltung — Lieferanten-Tracking"
+                aria-label={ariaLabel}
               >
-                {/* Wie Manage: `public/logo.png` unter `/logo.png`; bei Fehler ausblenden */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logo.png"
-                  alt=""
-                  width={120}
-                  height={32}
-                  className="h-8 w-auto max-w-[120px] shrink-0 object-contain object-left"
-                  decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <span className="hidden min-[1025px]:inline">
-                  Kawai Labs Shopverwaltung
+                {showLogo && branding?.logoUrl && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={branding.logoUrl}
+                    alt=""
+                    width={120}
+                    height={32}
+                    className="h-8 w-auto max-w-[140px] shrink-0 object-contain object-left"
+                    decoding="async"
+                    onError={() => setLogoVisible(false)}
+                  />
+                )}
+                <span className="hidden min-[1025px]:inline truncate">
+                  {title}
                 </span>
-                <span className="min-[1025px]:hidden text-sm font-semibold text-gray-900">
-                  Tracking
+                <span className="min-[1025px]:hidden truncate text-sm font-semibold text-gray-900">
+                  {isTokenRoute && branding?.shopName
+                    ? branding.shopName
+                    : "Tracking"}
                 </span>
               </Link>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
               <Link
-                href="/"
+                href={homeHref}
                 className={NAV_ACTION_CLASS}
                 title="Zur Startseite"
                 aria-label="Zur Startseite"

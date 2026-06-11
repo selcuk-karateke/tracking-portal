@@ -1,0 +1,14 @@
+---
+description: Prisma/DB — gemeinsame DB mit Manage, kein Portal-DDL
+globs: prisma/**/*
+alwaysApply: false
+---
+
+# Prisma & PostgreSQL
+
+- Schema **`prisma/schema.prisma`** muss zu **project-shop** passen (gleiche Tabellen/Spalten).
+- **Migrationen mit DDL** nur in **Manage** ausführen.
+- Portal-Migrationen: nur **No-op** (`SELECT 1;`), Dateien **UTF-8 ohne BOM** (sonst Postgres `\u{feff}`).
+- Portal: lesen + `prisma generate`; Credentials/Token wie in `src/lib/shopify-credentials.ts`.
+
+Neue Tabellen/Spalten nicht im Portal erfinden — TASK/Kopf oder Manage-Schema zuerst.

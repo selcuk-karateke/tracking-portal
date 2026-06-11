@@ -6,7 +6,7 @@
 
 | Bereich | Status |
 |---------|--------|
-| Repo / Branch | `tracking-portal` (Branch: bitte bei Änderungen hier eintragen) |
+| Repo / Branch | `tracking-portal` — Arbeit auf **`development`** / `feat/*`, **nicht** direkt auf `main`; Agent-Workflow: `.cursor/skills/caveman/SKILL.md` |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png` |
 | Was ist umgesetzt & getestet | Phase 1–3; **Teil-Fulfillment** nach `shopifyVariantId` aus Manage-Dispatches (Mischbestellungen); Allowlist nur **SUCCESS**; Formular-UX wie Karte 2026-05-09. Prisma-Felder an Manage: `shopifyVariantId`, `emailProviderMessageId` auf `dropshipping_dispatches`. DDL nur über Manage. |
 | Offen / nächster Schritt | Smoke E2E nach Deploy; optional Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`. |

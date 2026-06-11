@@ -1,0 +1,14 @@
+---
+description: Tracking-APIs — Token, Allowlist, strukturierte Fehler
+globs: src/app/api/tracking/**/*
+alwaysApply: false
+---
+
+# API `/api/tracking/*`
+
+- Token Pflicht; Auflösung via `resolveEntityIdFromToken` → `entityId` + `manufacturerEmail`.
+- Legacy ohne `manufacturerEmail`: `link_legacy_no_manufacturer_email` (403).
+- Shopify-Zugang: `loadShopifyCredentials(entityId)` aus `entity_credentials`.
+- Bestellungen: Allowlist `getAllowedShopifyOrderIdsForSupplier` / Varianten-Logik in `supplier-dispatch-variants.ts`.
+- Fehler: JSON `{ ok: false, error: { code, message } }` — keine leeren 500.
+- Neue Endpoints token-gebunden halten (wie `open-orders`, `shop-branding`).

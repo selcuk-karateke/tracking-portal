@@ -1,0 +1,14 @@
+---
+description: Git-Workflow — nie auf main committen, Feature-Branches von development
+alwaysApply: true
+---
+
+# Git (tracking-portal)
+
+- **Nicht** auf `main` entwickeln oder committen. Integrationsbranch: **`development`**.
+- Vor Codeänderungen: `git branch --show-current` — bei `main` → `git checkout development` und `git checkout -b feat/…`.
+- Feature-Branches von aktuellem `development`: `feat/`, `fix/`, `chore/` + Kurzname.
+- Kein force-push auf `main`/`development` ohne explizite Nutzeranfrage.
+- Commits nur auf Nutzerwunsch; dann keine Secrets (`.env`).
+
+Skill mit vollständiger Checkliste: `.cursor/skills/caveman/SKILL.md` (oder `/caveman`).
