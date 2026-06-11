@@ -7,9 +7,9 @@
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` — Arbeit auf **`development`** / `feat/*`, **nicht** direkt auf `main`; Agent-Workflow: `.cursor/skills/caveman/SKILL.md` |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png` |
+| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`, `GET /api/tracking/entity-logo`, `GET /api/tracking/shop-branding`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png`; Shop-Logo-Proxy `entity-logo.ts` (lokal + Manage-HTTP) |
 | Was ist umgesetzt & getestet | Phase 1–3; **Teil-Fulfillment** nach `shopifyVariantId` aus Manage-Dispatches (Mischbestellungen); Allowlist nur **SUCCESS**; Formular-UX wie Karte 2026-05-09. Prisma-Felder an Manage: `shopifyVariantId`, `emailProviderMessageId` auf `dropshipping_dispatches`. DDL nur über Manage. |
-| Offen / nächster Schritt | Smoke E2E nach Deploy; optional Log-Zeile in `project-shop/docs/TRACKING_PORTAL_INTEGRATION.md`. |
+| Offen / nächster Schritt | **Coolify:** Shop-Logo — Shared Volume `/app/public/uploads` am Portal (wie Manage) **oder** `MANAGE_PUBLIC_URL`; statische Manage-URLs reichen auf Coolify oft nicht → Manage-Route `/api/tracking/public/entity-logo` (Kopf). Smoke E2E nach Deploy. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -37,6 +37,17 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-06-11 — Shop-Logo 404 in Prod (entity-logo)
+
+- **Priorität:** P0
+- **Problem:** `GET /api/tracking/entity-logo?token=…` → **404** — Portal findet keine Datei unter `public/uploads/logos/{entityId}.*` und kein Manage-Fetch.
+- **Ursache:** Logos liegen auf Manage im Volume `public/uploads/logos/`; Portal-Container hat das Volume nicht gemountet; statische `/uploads/logos/…` auf Manage-Coolify oft 404 (Manage nutzt intern `/api/entities/…/logo/image` mit Login).
+- **Done wenn:**
+  - Coolify Portal: **dasselbe** Persistent Storage wie Manage → `/app/public/uploads`, **oder** `MANAGE_PUBLIC_URL` gesetzt und Logo erreichbar
+  - Optional Kopf: `GET /api/tracking/public/entity-logo?token=…` in `project-shop` (Token wie Portal) — Portal versucht diese URL bereits
+- **Status:** 🟡 in Arbeit
+- **Notiz Agent 2:** `fetchRemoteEntityLogo` + `.env.example`; Branch `fix/entity-logo-coolify`
 
 ### 2026-05-09 — Mischbestellungen: nur Lieferanten-Positionen fulfillen (Backend erledigt, UI optional)
 

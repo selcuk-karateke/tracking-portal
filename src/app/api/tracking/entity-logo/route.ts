@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import { resolveEntityIdFromToken } from "@/lib/resolve-entity-from-token";
 import {
+  fetchRemoteEntityLogo,
   findLocalLogoPath,
   getLocalLogoContentType,
-  getManageLogoUrls,
 } from "@/lib/entity-logo";
 
 export async function GET(request: NextRequest) {
@@ -29,21 +29,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  for (const url of getManageLogoUrls(resolved.entityId)) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (res.ok) {
-        const buf = Buffer.from(await res.arrayBuffer());
-        return new NextResponse(buf, {
-          headers: {
-            "Content-Type": res.headers.get("content-type") ?? "image/png",
-            "Cache-Control": "private, max-age=3600",
-          },
-        });
-      }
-    } catch {
-      /* nächste Extension */
-    }
+  const remote = await fetchRemoteEntityLogo(resolved.entityId, token);
+  if (remote) {
+    return new NextResponse(remote.buffer, {
+      headers: {
+        "Content-Type": remote.contentType,
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
   }
 
   return new NextResponse(null, { status: 404 });
