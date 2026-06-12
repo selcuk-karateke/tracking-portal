@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-05-09 (Teil-Fulfillment + UX)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-06-11 (Slug-Auflösung)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` — Arbeit auf **`development`** / `feat/*`, **nicht** direkt auf `main`; Agent-Workflow: `.cursor/skills/caveman/SKILL.md` |
 | Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`, `GET /api/tracking/entity-logo`, `GET /api/tracking/shop-branding`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png`; Shop-Logo-Proxy `entity-logo.ts` (lokal + Manage-HTTP) |
 | Was ist umgesetzt & getestet | Phase 1–3; **Teil-Fulfillment** nach `shopifyVariantId` aus Manage-Dispatches (Mischbestellungen); Allowlist nur **SUCCESS**; Formular-UX wie Karte 2026-05-09. Prisma-Felder an Manage: `shopifyVariantId`, `emailProviderMessageId` auf `dropshipping_dispatches`. DDL nur über Manage. |
-| Offen / nächster Schritt | **Coolify:** Shop-Logo — Shared Volume `/app/public/uploads` am Portal (wie Manage) **oder** `MANAGE_PUBLIC_URL`; statische Manage-URLs reichen auf Coolify oft nicht → Manage-Route `/api/tracking/public/entity-logo` (Kopf). Smoke E2E nach Deploy. |
+| Offen / nächster Schritt | **Coolify:** Shop-Logo — Shared Volume `/app/public/uploads` am Portal (wie Manage) **oder** `MANAGE_PUBLIC_URL`. Smoke E2E Slug-URL + API mit Token. Lieferanten-Doku: `project-shop/docs/LIEFERANTEN_TRACKING_API.md`. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -37,6 +37,18 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-06-11 — Slug-URLs `/l/<kurzname>` (Manage + Portal)
+
+- **Priorität:** P1
+- **Auftrag:**
+  - Manage: Spalte `slug` auf `supplier_tracking_links`, UI Kurzname, Doku `LIEFERANTEN_TRACKING_API.md`
+  - Portal: `resolveEntityIdFromToken` — 64-Zeichen-Hex → Hash, sonst Slug-Lookup
+- **Done wenn:**
+  - Neuer Link mit Label „MASC“ → `/l/masc` öffnet Formular; POST `/api/tracking` mit vollem Token funktioniert
+  - `pnpm validate` grün
+- **Status:** 🟢 erledigt
+- **Notiz Agent 2:** Schema + No-op-Migration `20260611120000_supplier_tracking_slug`; DDL nur aus Manage deployen.
 
 ### 2026-06-11 — Shop-Logo 404 in Prod (entity-logo)
 

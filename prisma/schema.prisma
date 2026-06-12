@@ -14,6 +14,7 @@ model SupplierTrackingLink {
   id                String    @id @default(uuid())
   entityId          String
   tokenHash         String    @unique
+  slug              String?   @unique
   label             String?
   manufacturerEmail String?
   revokedAt         DateTime?

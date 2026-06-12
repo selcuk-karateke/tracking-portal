@@ -15,6 +15,10 @@ export type ResolveEntityResult =
   | { ok: true; entityId: string; manufacturerEmail: string }
   | { ok: false; reason: ResolveFailureReason };
 
+function looksLikePlainToken(value: string): boolean {
+  return /^[a-f0-9]{64}$/i.test(value.trim());
+}
+
 export async function resolveEntityIdFromToken(
   token: string,
 ): Promise<ResolveEntityResult> {
@@ -22,12 +26,19 @@ export async function resolveEntityIdFromToken(
     return { ok: false, reason: "not_configured" };
   }
 
-  const tokenHash = hashToken(token);
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return { ok: false, reason: "not_found" };
+  }
 
   try {
-    const row = await prisma.supplierTrackingLink.findUnique({
-      where: { tokenHash },
-    });
+    const row = looksLikePlainToken(trimmed)
+      ? await prisma.supplierTrackingLink.findUnique({
+          where: { tokenHash: hashToken(trimmed) },
+        })
+      : await prisma.supplierTrackingLink.findFirst({
+          where: { slug: trimmed.toLowerCase() },
+        });
 
     if (!row) {
       return { ok: false, reason: "not_found" };
