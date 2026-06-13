@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import {
+  accessKeyFromPath,
+  buildHilfeHref,
+  buildTrackingHref,
+} from "@/lib/access-key";
 
 function IconHome({ className }: { className?: string }) {
   return (
@@ -51,37 +56,33 @@ const NAV_ACTION_CLASS =
 const KAWAI_LOGO = "/logo.png";
 const KAWAI_NAME = "Kawai Labs Shopverwaltung";
 
-function extractTokenFromPath(pathname: string | null): string | null {
-  if (!pathname) return null;
-  const match = /^\/l\/([^/]+)/.exec(pathname);
-  if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
-}
-
 export function PortalNav() {
   const pathname = usePathname();
-  const token = useMemo(() => extractTokenFromPath(pathname), [pathname]);
+  const searchParams = useSearchParams();
+  const accessKey = useMemo(() => {
+    const fromPath = accessKeyFromPath(pathname);
+    if (fromPath) return fromPath;
+    const fromQuery = searchParams.get("token")?.trim();
+    return fromQuery || null;
+  }, [pathname, searchParams]);
+
   const [shopName, setShopName] = useState<string | null>(null);
   const [shopLogoOk, setShopLogoOk] = useState(true);
 
-  const isTokenRoute = Boolean(token);
-  const homeHref =
-    isTokenRoute && token ? `/l/${encodeURIComponent(token)}` : "/";
+  const hasShopContext = Boolean(accessKey);
+  const homeHref = accessKey ? buildTrackingHref(accessKey) : "/";
+  const hilfeHref = buildHilfeHref(accessKey);
 
   const shopLogoSrc =
-    isTokenRoute && token && shopLogoOk
-      ? `/api/tracking/entity-logo?token=${encodeURIComponent(token)}`
+    hasShopContext && accessKey && shopLogoOk
+      ? `/api/tracking/entity-logo?token=${encodeURIComponent(accessKey)}`
       : null;
 
-  const logoSrc = isTokenRoute ? shopLogoSrc : KAWAI_LOGO;
-  const title = isTokenRoute ? (shopName ?? "Shop") : KAWAI_NAME;
+  const logoSrc = hasShopContext ? shopLogoSrc : KAWAI_LOGO;
+  const title = hasShopContext ? (shopName ?? "Shop") : KAWAI_NAME;
 
   useEffect(() => {
-    if (!token) {
+    if (!accessKey) {
       queueMicrotask(() => {
         setShopName(null);
         setShopLogoOk(true);
@@ -98,7 +99,7 @@ export function PortalNav() {
     void (async () => {
       try {
         const res = await fetch(
-          `/api/tracking/shop-branding?token=${encodeURIComponent(token)}`,
+          `/api/tracking/shop-branding?token=${encodeURIComponent(accessKey)}`,
         );
         const data = (await res.json().catch(() => null)) as {
           shopName?: string;
@@ -107,14 +108,14 @@ export function PortalNav() {
           setShopName(data.shopName);
         }
       } catch {
-        /* Name-Fallback „Shop“ */
+        /* Fallback „Shop“ */
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [accessKey]);
 
   return (
     <header className="flex-shrink-0 border-b border-gray-200 bg-white">
@@ -137,7 +138,7 @@ export function PortalNav() {
                     className="h-8 w-auto max-w-[140px] shrink-0 object-contain object-left"
                     decoding="async"
                     onError={() => {
-                      if (isTokenRoute) setShopLogoOk(false);
+                      if (hasShopContext) setShopLogoOk(false);
                     }}
                   />
                 )}
@@ -145,7 +146,7 @@ export function PortalNav() {
                   {title}
                 </span>
                 <span className="min-[1025px]:hidden truncate text-sm font-semibold text-gray-900">
-                  {isTokenRoute ? (shopName ?? "Shop") : "Tracking"}
+                  {hasShopContext ? (shopName ?? "Shop") : "Tracking"}
                 </span>
               </Link>
             </div>
@@ -161,7 +162,7 @@ export function PortalNav() {
                 <span className="hidden min-[1025px]:inline">Start</span>
               </Link>
               <Link
-                href="/hilfe"
+                href={hilfeHref}
                 className={NAV_ACTION_CLASS}
                 title="Hilfe und API"
                 aria-label="Hilfe und API"

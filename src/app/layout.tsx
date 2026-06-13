@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { PortalNav } from "@/components/portal-nav";
 import "./globals.css";
 
@@ -23,7 +24,13 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body className="flex min-h-screen flex-col font-sans antialiased text-gray-900">
-        <PortalNav />
+        <Suspense
+          fallback={
+            <header className="flex-shrink-0 border-b border-gray-200 bg-white min-h-14" />
+          }
+        >
+          <PortalNav />
+        </Suspense>
         <main className="flex flex-1 flex-col bg-gray-50">{children}</main>
         <footer className="flex-shrink-0 border-t border-gray-200 bg-white">
           <div className="mx-auto max-w-7xl px-3 py-4 text-center text-sm text-gray-600 sm:px-4 lg:px-8">

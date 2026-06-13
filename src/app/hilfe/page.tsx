@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buildTrackingHref } from "@/lib/access-key";
 import { getPortalBaseUrl } from "@/lib/portal-base-url";
+import { resolveEntityIdFromToken } from "@/lib/resolve-entity-from-token";
+import { resolveShopBrandingForEntity } from "@/lib/shop-branding";
 
 export const metadata: Metadata = {
   title: "Hilfe",
@@ -17,9 +20,32 @@ const ERROR_CODES = [
   "order_not_found",
 ] as const;
 
-export default async function HilfePage() {
+type PageProps = {
+  searchParams: Promise<{ token?: string }>;
+};
+
+export default async function HilfePage({ searchParams }: PageProps) {
+  const { token: rawAccessKey } = await searchParams;
+  const accessKey = rawAccessKey?.trim() || null;
+
+  let shopName: string | null = null;
+  if (accessKey) {
+    const resolved = await resolveEntityIdFromToken(accessKey);
+    if (resolved.ok) {
+      const branding = await resolveShopBrandingForEntity(
+        resolved.entityId,
+        accessKey,
+      );
+      shopName = branding.shopName;
+    }
+  }
+
   const baseUrl = await getPortalBaseUrl();
   const apiUrl = `${baseUrl}/api/tracking`;
+  const formExampleUrl = accessKey
+    ? `${baseUrl}${buildTrackingHref(accessKey)}`
+    : `${baseUrl}/l/ihr-name`;
+  const backHref = accessKey ? buildTrackingHref(accessKey) : "/";
 
   const curlExample = `curl -sS -X POST "${apiUrl}" \\
   -H "Content-Type: application/json" \\
@@ -45,8 +71,17 @@ export default async function HilfePage() {
             Hilfe für Lieferanten
           </h1>
           <p className="text-sm leading-relaxed text-gray-600">
-            Sendungsnummern an Ihren Händler melden — im Browser oder per API
-            aus Ihrem ERP.
+            {shopName ? (
+              <>
+                Sendungsnummern an <strong>{shopName}</strong> melden — im
+                Browser oder per API aus Ihrem ERP.
+              </>
+            ) : (
+              <>
+                Sendungsnummern an Ihren Händler melden — im Browser oder per
+                API aus Ihrem ERP.
+              </>
+            )}
           </p>
         </header>
 
@@ -64,7 +99,7 @@ export default async function HilfePage() {
             <li>
               Nutzen Sie den <strong>persönlichen Link</strong> vom Händler (z. B.{" "}
               <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">
-                {baseUrl}/l/ihr-name
+                {formExampleUrl}
               </code>
               ).
             </li>
@@ -234,10 +269,10 @@ export default async function HilfePage() {
 
         <p className="text-sm text-gray-500">
           <Link
-            href="/"
+            href={backHref}
             className="font-medium text-gray-700 underline-offset-2 hover:underline"
           >
-            ← Zur Startseite
+            ← {accessKey ? "Zum Formular" : "Zur Startseite"}
           </Link>
         </p>
       </div>

@@ -1,4 +1,5 @@
 import { TrackingForm } from "@/app/tracking-form";
+import { buildHilfeHref } from "@/lib/access-key";
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -47,7 +48,7 @@ export default async function TrackingLinkPage({ params }: PageProps) {
             </li>
             <li>
               <a
-                href="/hilfe#api"
+                href={buildHilfeHref(token, "#api")}
                 className="font-medium text-gray-800 underline-offset-2 hover:underline"
               >
                 API-Dokumentation für ERP-Systeme
