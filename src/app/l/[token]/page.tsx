@@ -45,6 +45,14 @@ export default async function TrackingLinkPage({ params }: PageProps) {
               Dieses Formular ist Teil der{" "}
               <strong>Kawai Labs Shopverwaltung</strong>.
             </li>
+            <li>
+              <a
+                href="/hilfe#api"
+                className="font-medium text-gray-800 underline-offset-2 hover:underline"
+              >
+                API-Dokumentation für ERP-Systeme
+              </a>
+            </li>
           </ul>
         </section>
       </div>

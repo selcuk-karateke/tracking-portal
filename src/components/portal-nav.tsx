@@ -160,15 +160,15 @@ export function PortalNav() {
                 <IconHome className="shrink-0 text-gray-700" />
                 <span className="hidden min-[1025px]:inline">Start</span>
               </Link>
-              <a
-                href="#portal-hilfe"
+              <Link
+                href="/hilfe"
                 className={NAV_ACTION_CLASS}
-                title="Hilfe zum Formular"
-                aria-label="Hilfe zum Formular"
+                title="Hilfe und API"
+                aria-label="Hilfe und API"
               >
                 <IconHelp className="shrink-0 text-gray-700" />
                 <span className="hidden min-[1025px]:inline">Hilfe</span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

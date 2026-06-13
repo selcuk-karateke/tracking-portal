@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-06-11 (Slug-Auflösung)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-06-12 (Hilfe/API-Seite)
 
 | Bereich | Status |
 |---------|--------|
-| Repo / Branch | `tracking-portal` — Arbeit auf **`development`** / `feat/*`, **nicht** direkt auf `main`; Agent-Workflow: `.cursor/skills/caveman/SKILL.md` |
-| Was existiert (Dateien, Routen) | UI-Route `/l/[token]`; Startseite `/` mit Hinweis; API `POST /api/tracking`, `GET /api/tracking/open-orders`, `GET /api/tracking/entity-logo`, `GET /api/tracking/shop-branding`; Token-Auflösung inkl. Hersteller-E-Mail; Allowlist über **`DropshippingDispatch` → `DropshippingRun`** (wie Manage); Shopify-Order-ID numerisch/GID (`shopify-order-id-match.ts`); Prisma für gemeinsame Tabellen **wie `project-shop`**; `public/logo.png`; Shop-Logo-Proxy `entity-logo.ts` (lokal + Manage-HTTP) |
-| Was ist umgesetzt & getestet | Phase 1–3; **Teil-Fulfillment** nach `shopifyVariantId` aus Manage-Dispatches (Mischbestellungen); Allowlist nur **SUCCESS**; Formular-UX wie Karte 2026-05-09. Prisma-Felder an Manage: `shopifyVariantId`, `emailProviderMessageId` auf `dropshipping_dispatches`. DDL nur über Manage. |
-| Offen / nächster Schritt | **Coolify:** Shop-Logo — Shared Volume `/app/public/uploads` am Portal (wie Manage) **oder** `MANAGE_PUBLIC_URL`. Smoke E2E Slug-URL + API mit Token. Lieferanten-Doku: `project-shop/docs/LIEFERANTEN_TRACKING_API.md`. |
+| Repo / Branch | `tracking-portal` — Branch `feat/hilfe-api-page` von `development` |
+| Was existiert (Dateien, Routen) | Wie zuvor + **`/hilfe`** (Formular + API-Doku, öffentlich); Nav „Hilfe“ → `/hilfe` |
+| Was ist umgesetzt & getestet | Slug-URLs live; **`pnpm run lint`** grün für Hilfe-Seite |
+| Offen / nächster Schritt | Merge `feat/hilfe-api-page` → `development` → `main`, Redeploy Portal. Manage-Hinweis optional auf `{TRACKING_PORTAL_BASE_URL}/hilfe` |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -37,6 +37,14 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-06-12 — Öffentliche Hilfe/API-Seite `/hilfe`
+
+- **Priorität:** P1
+- **Auftrag:** Lieferanten-Doku aus `LIEFERANTEN_TRACKING_API.md` als öffentliche Seite im Portal; Nav „Hilfe“ verlinkt dorthin.
+- **Done wenn:** `https://<portal>/hilfe` erreichbar; API-Beispiele mit korrekter Host-URL; Lint grün.
+- **Status:** 🟢 erledigt (Branch `feat/hilfe-api-page`)
+- **Notiz Agent 2:** Route `src/app/hilfe/page.tsx`; Merge → `development` → `main`.
 
 ### 2026-06-11 — Slug-URLs `/l/<kurzname>` (Manage + Portal)
 

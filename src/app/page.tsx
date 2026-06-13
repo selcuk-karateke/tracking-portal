@@ -40,6 +40,14 @@ export default function Home() {
             <strong>Kawai Labs Shopverwaltung</strong>. Wenn Sie keinen Link
             haben, wenden Sie sich bitte an Ihren Ansprechpartner.
           </p>
+          <p className="mt-3 text-sm">
+            <a
+              href="/hilfe"
+              className="font-medium text-gray-800 underline-offset-2 hover:underline"
+            >
+              Ausführliche Hilfe &amp; API für ERP
+            </a>
+          </p>
         </section>
       </div>
     </div>
