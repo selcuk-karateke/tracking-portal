@@ -10,7 +10,10 @@ export async function isHubFulfillmentRunForSupplierOrder(
   shopifyOrderId: string,
 ): Promise<boolean> {
   const normalized = normalizeManufacturerEmail(manufacturerEmail);
-  const orderId = canonicalNumericShopifyOrderId(shopifyOrderId);
+  const trimmed = shopifyOrderId.trim();
+  const orderId = /^\d+$/.test(trimmed)
+    ? trimmed
+    : canonicalNumericShopifyOrderId({ id: trimmed });
   if (!orderId) return false;
 
   const row = await prisma.dropshippingDispatch.findFirst({
