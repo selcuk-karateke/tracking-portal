@@ -2,14 +2,14 @@
 
 **Repo:** dieses Verzeichnis (`tracking-portal`).
 
-## Stand (für `project-shop` / Kopf) — zuletzt: 2026-06-12 (Hilfe/API-Seite)
+## Stand (für `project-shop` / Kopf) — zuletzt: 2026-06-23 (Ausland/Hub spezifiziert)
 
 | Bereich | Status |
 |---------|--------|
 | Repo / Branch | `tracking-portal` — Branch `feat/hilfe-api-page` von `development` |
 | Was existiert (Dateien, Routen) | Wie zuvor + **`/hilfe`** (Formular + API-Doku, öffentlich); Nav „Hilfe“ → `/hilfe` |
-| Was ist umgesetzt & getestet | Slug-URLs live; **`pnpm run lint`** grün für Hilfe-Seite |
-| Offen / nächster Schritt | Merge `feat/hilfe-api-page` → `development` → `main`, Redeploy Portal. Manage-Hinweis optional auf `{TRACKING_PORTAL_BASE_URL}/hilfe` |
+| Was ist umgesetzt & getestet | Slug-URLs live; Teil-Fulfillment Mischbestellungen; Hersteller-Isolation |
+| Offen / nächster Schritt | **P1:** Ausland/Hub Zweistufen-Tracking (Karte 2026-06-23) — blockiert auf Manage-Routing + DDL. **Bis dahin:** `/hilfe` Hinweis „nur Endkunden-Tracking“. Merge `feat/hilfe-api-page` falls noch offen. |
 
 > Regel für Agent 2: Diesen Block bei jedem relevanten Merge aktualisieren (kurz + präzise), damit der Kopf im `project-shop` ohne Chat-Verlauf den echten Stand sieht.
 
@@ -37,6 +37,39 @@
 ```
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
+
+### 2026-06-23 — Commercial Invoice für Zoll (Ziel) + Hub nur Übergang
+
+- **Priorität:** P0 (fachlich)
+- **Ziel:** PDF **Commercial Invoice** (VK, Dach PRO, Endkunde, Ursprungsland) automatisch an Lieferanten bei Zoll-Ländern — direktversand CH, **ohne Bonum**. Siehe `TRACKING_PORTAL_INTEGRATION.md` Variante 1/2.
+- **Auftrag (Manage):** Neues PDF `lib/commercial-invoice-pdf.ts` (oder Rechnungsmodul erweitern); bei Dropshipping-Dispatch Zoll-Land → zweiter Anhang in Hersteller-Mail; Felder: VK aus Order, Ursprungsland (Metafield o. Default).
+- **Hub-Branch:** Übergang bis CI live; danach Hub optional deaktivieren.
+- **Done wenn:** CH-Testorder → Lieferant erhält Lieferschein + Commercial Invoice; direkt an Kunde; Portal-Tracking wie heute.
+- **Status:** ⚪ offen
+- **Notiz:** Business zuerst 3 Lieferanten befragen (TASK bleibt technisch).
+
+### 2026-06-23 — Ausland/Hub: Zweistufen-Versand (CH, Bonum) — ÜBERGANG
+
+- **Priorität:** P1 (fachlich; nach Manage-Routing)
+- **Kontext:** `docs/TRACKING_PORTAL_INTEGRATION.md` → *Ausland / Hub*. Hersteller→Bonum ≠ Kunden-Fulfillment. EK-Rechnung nicht beim Kunden; VK-Rechnung für Zoll.
+- **Auftrag (Manage zuerst, dann Portal):**
+  1. **Manage:** Länder-/Hub-Routing in Dropshipping; Hub-Adresse (Bonum); Bein-1-Mail mit Lieferschein an Hub + **VK-Rechnung** (Rechnungsmodul); Dispatch-Flag `fulfillmentLeg` (`hub` \| `customer`) — **DDL nur project-shop**.
+  2. **Portal:** `POST /api/tracking` — bei `fulfillmentLeg=hub` **kein** `fulfillmentCreate` (optional Status „Hub eingegangen“); Fulfillment nur `customer`. `/hilfe`: Tracking nur Endkunden-Versand, nicht Hub-Anlieferung.
+  3. **Prozess:** Wer trägt Bein 2 ein (Bonum vs. intern)?
+- **Done wenn:**
+  - CH-Testorder: Hersteller-Paket an Hub mit VK-Dokument; kein Kunden-Fulfillment.
+  - Bein 2: Tracking → Fulfillment + Kundenmail.
+  - MASC-ähnlicher Fall: Hub-Tracking löst **nicht** „versendet“ aus.
+- **Status:** ⚪ offen (Spezifikation Kopf 2026-06-23)
+- **Notiz Agent 2:** Auf Manage-DDL + Routing warten; Schema-Angleichung No-op wie bisher.
+
+### 2026-06-23 — `/hilfe`: Hinweis Endkunden-Tracking only (Quick)
+
+- **Priorität:** P1 (bis Hub live)
+- **Auftrag:** Auf `/hilfe` + Formular-Banner: Sendungsnummer nur für **Versand an den Endkunden** — nicht für Anlieferung an Lager/Bonum.
+- **Done wenn:** Text sichtbar; Lint grün.
+- **Status:** ⚪ offen
+- **Notiz Agent 2:** Kein Blocker für Hub-Epic; kann parallel.
 
 ### 2026-06-12 — Öffentliche Hilfe/API-Seite `/hilfe`
 

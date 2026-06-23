@@ -104,6 +104,10 @@ export default async function HilfePage({ searchParams }: PageProps) {
               ).
             </li>
             <li>
+              Sendungsnummer nur für den <strong>Versand an den Endkunden</strong>{" "}
+              — nicht für Lieferungen an Lager/Hub (z. B. Bonum bei Zoll).
+            </li>
+            <li>
               Bestellnummer wie im Shop (z. B. <strong>#1001</strong> oder{" "}
               <strong>1001</strong>), Sendungsnummer und Versanddienst eintragen.
             </li>

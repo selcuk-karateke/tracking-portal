@@ -263,9 +263,13 @@ export function TrackingForm({ token }: Props) {
   return (
     <form onSubmit={onSubmit} className={INNER_FORM_CLASS} noValidate>
       <p className={INFO_BANNER_CLASS}>
-        <span className="font-medium">Hinweis:</span> Dieses Formular gehört zur{" "}
-        <strong>Kawai Labs Shopverwaltung</strong>. Nutzen Sie nur Links, die Sie
-        vom Betreiber erhalten haben.
+        <span className="font-medium">Hinweis:</span> Sendungsnummer nur für den{" "}
+        <strong>Versand an den Endkunden</strong> — nicht für Anlieferungen an
+        Lager/Hub (z. B. Bonum).
+      </p>
+      <p className={INFO_BANNER_CLASS}>
+        <span className="font-medium">Vertrauen:</span> Nur Links vom Betreiber
+        der <strong>Kawai Labs Shopverwaltung</strong> nutzen.
       </p>
 
       {/* Pflichtfelder links, „Tracking melden“ rechts oben in dieser Zeile — über der Tabelle */}

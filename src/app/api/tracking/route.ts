@@ -19,6 +19,7 @@ import {
 } from "@/lib/shopify-order-id-match";
 import { getAllowedShopifyOrderIdsForSupplier } from "@/lib/supplier-order-allowlist";
 import { getVariantQuantitiesForSupplierOrder } from "@/lib/supplier-dispatch-variants";
+import { isHubFulfillmentRunForSupplierOrder } from "@/lib/run-fulfillment-leg";
 
 const CARRIERS = ["DHL", "DPD", "UPS", "Sonstiges"] as const;
 
@@ -334,6 +335,21 @@ export async function POST(request: NextRequest) {
   }
 
   const orderNumeric = canonicalNumericShopifyOrderId(orderResult.order);
+  if (
+    orderNumeric &&
+    (await isHubFulfillmentRunForSupplierOrder(
+      resolved.entityId,
+      resolved.manufacturerEmail,
+      orderNumeric,
+    ))
+  ) {
+    return errorResponse(
+      409,
+      "hub_order_no_supplier_fulfillment",
+      "Zoll-/Hub-Bestellung: Nur an unser Lager liefern — kein Tracking für die Lager-Anlieferung. Versand an den Endkunden meldet der Händler.",
+    );
+  }
+
   const variantQuantities = await getVariantQuantitiesForSupplierOrder(
     resolved.entityId,
     resolved.manufacturerEmail,
