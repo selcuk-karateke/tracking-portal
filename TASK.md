@@ -38,7 +38,17 @@
 
 <!-- Kopf/Betreiber: neue Karten **unter** dieser Vorlage einfügen (neueste oben oder unten — einheitlich „neueste oben“ bevorzugt). -->
 
-### 2026-06-23 — Commercial Invoice für Zoll (Ziel) + Hub nur Übergang
+### 2026-06-25 — Slug `/l/selcuk` → token_revoked auf tracking.dachpro.com
+
+- **Priorität:** P0
+- **Kontext:** Live funktioniert mit **Token-URLs** (64 hex). **Slug** schlägt auf öffentlicher Domain fehl, obwohl `wget localhost:3000` im Container ok ist → Instanz hinter `tracking.dachpro.com` braucht `715bfb8+` (`revokedAt: null` beim Slug-Lookup).
+- **Auftrag:**
+  - `resolve-entity-from-token.ts`: `orderBy createdAt desc` (erledigt lokal)
+  - Coolify: App mit Domain `tracking.dachpro.com` → Branch `development` → Rebuild ohne Cache
+- **Done wenn:** `GET …/shop-branding?token=selcuk` → `ok:true` (nicht `token_revoked`)
+- **Status:** 🟡 in Arbeit
+- **Notiz Agent 2:** Manage-Fix `entity-logo` Slug-Auflösung in project-shop separat.
+
 
 - **Priorität:** P0 (fachlich)
 - **Ziel:** PDF **Commercial Invoice** (VK, Dach PRO, Endkunde, Ursprungsland) automatisch an Lieferanten bei Zoll-Ländern — direktversand CH, **ohne Bonum**. Siehe `TRACKING_PORTAL_INTEGRATION.md` Variante 1/2.
