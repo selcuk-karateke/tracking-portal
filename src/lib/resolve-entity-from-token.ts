@@ -37,7 +37,7 @@ export async function resolveEntityIdFromToken(
           where: { tokenHash: hashToken(trimmed) },
         })
       : await prisma.supplierTrackingLink.findFirst({
-          where: { slug: trimmed.toLowerCase() },
+          where: { slug: trimmed.toLowerCase(), revokedAt: null },
         });
 
     if (!row) {
